@@ -7,8 +7,11 @@ test('public site code expands to an origin', () => assert.equal(goatcounterOrig
 test('reject credentials, URLs and malformed codes', () => {
   for (const value of [null, 'https://example.com', 'token/secret', '../x', 'X Y', '-test']) assert.throws(() => goatcounterOrigin(value));
 });
-test('read counter uses the exact encoded project pathname', () => {
-  assert.equal(counterURL('https://bluehour-test.goatcounter.com', '/Blog/blog/example/'), 'https://bluehour-test.goatcounter.com/counter/%2FBlog%2Fblog%2Fexample%2F.json');
+test('read counter uses exact path and a documented recovery cache key', () => {
+  const origin = 'https://bluehour-test.goatcounter.com';
+  const path = '/Blog/blog/example/';
+  assert.equal(counterURL(origin, path), 'https://bluehour-test.goatcounter.com/counter/%2FBlog%2Fblog%2Fexample%2F.json');
+  assert.equal(counterURL(origin, path, true), 'https://bluehour-test.goatcounter.com/counter/%2FBlog%2Fblog%2Fexample%2F.json?start=1970-01-01');
 });
 test('reject non-GoatCounter origins and query-string paths', () => {
   assert.throws(() => counterURL('https://example.com', '/x/'));

@@ -39,7 +39,8 @@ export async function verifyPageViewStates(browser) {
     {name:'disabled', configured:false, expected:'disabled', text:'阅读统计待启用'},
     {name:'formatted', expected:'ready', body:{count:'1,234'}, text:'1,234 次阅读'},
     {name:'zero', expected:'ready', body:{count:'0'}, text:'0 次阅读'},
-    {name:'new-path', status:404, expected:'empty', text:'暂无阅读数据'},
+    {name:'new-path-recovers', status:404, recoveryBody:{count:'1'}, expected:'ready', text:'1 次阅读'},
+    {name:'missing-path', status:404, recoveryStatus:404, expected:'empty', text:'暂无阅读数据'},
     {name:'private-count', status:403, expected:'error', text:'阅读量暂不可用'},
     {name:'invalid', body:{unexpected:123}, expected:'error', text:'阅读量暂不可用'},
     {name:'offline', abort:true, expected:'error', text:'阅读量暂不可用'},
@@ -65,15 +66,20 @@ export async function verifyPageViewStates(browser) {
           await route.fulfill({contentType:'application/javascript', body:'window.__mockTrackerLoaded = true;'});
         } else if (address.startsWith('https://bluehour-test.goatcounter.com/counter/')) {
           requests.push(address);
-          if (item.abort) await route.abort();
-          else await route.fulfill({status:item.status || 200, contentType:'application/json', headers:{'access-control-allow-origin':'*'}, body:JSON.stringify(item.body || {})});
+          const recovery = address.includes('?start=1970-01-01');
+          if (item.abort && !recovery) await route.abort();
+          else {
+            const status = recovery ? (item.recoveryStatus || 200) : (item.status || 200);
+            const body = recovery ? (item.recoveryBody || item.body || {}) : (item.body || {});
+            await route.fulfill({status, contentType:'application/json', headers:{'access-control-allow-origin':'*'}, body:JSON.stringify(body)});
+          }
         } else {
           throw new Error(`Unexpected outbound request in counter test: ${address}`);
         }
       });
       const page = await context.newPage();
       await page.goto('https://blog-test.invalid/Blog/blog/example/?preview=1');
-      await page.addScriptTag({content:source+'\ninitPageViews(); initPageViews();'});
+      await page.addScriptTag({content:source+'\ninitPageViews(document,{syncDelayMs:0}); initPageViews(document,{syncDelayMs:0});'});
       await page.waitForFunction(state => document.querySelector('[data-page-views]').dataset.state === state, item.expected);
       assert.equal(await page.locator('[data-views-value]').textContent(), item.text);
       if (['disabled','preview','privacy'].includes(item.expected)) {
@@ -82,7 +88,12 @@ export async function verifyPageViewStates(browser) {
         await page.waitForFunction(() => window.__mockTrackerLoaded === true);
         assert.equal(requests.filter(address => address.endsWith('/count.js')).length, 1);
         const counters = requests.filter(address => address.includes('/counter/'));
-        assert.deepEqual(counters, ['https://bluehour-test.goatcounter.com/counter/%2FBlog%2Fblog%2Fexample%2F.json']);
+        const bare = 'https://bluehour-test.goatcounter.com/counter/%2FBlog%2Fblog%2Fexample%2F.json';
+        if (item.status === 404) {
+          assert.deepEqual(counters, [bare, bare+'?start=1970-01-01']);
+        } else {
+          assert.deepEqual(counters, [bare]);
+        }
         const settings = JSON.parse(await page.locator('script[data-bluehour-goatcounter]').getAttribute('data-goatcounter-settings'));
         assert.equal(settings.path, '/Blog/blog/example/');
         assert.equal(settings.no_events, true);

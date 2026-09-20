@@ -1,4 +1,6 @@
 // The public counter is read-only; no API token or invented local counter is used.
+const RECOVERY_START = '1970-01-01';
+
 export function goatcounterOrigin(code) {
   if (typeof code !== 'string') throw new Error('GoatCounter site code must be a string.');
   const value = code.trim();
@@ -9,14 +11,18 @@ export function goatcounterOrigin(code) {
   return `https://${value}.goatcounter.com`;
 }
 
-export function counterURL(origin, path) {
+export function counterURL(origin, path, bypassCachedNotFound = false) {
   if (!/^https:\/\/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.goatcounter\.com$/.test(origin)) {
     throw new Error('Invalid GoatCounter origin.');
   }
   if (!path.startsWith('/') || path.startsWith('//') || /[?#]/.test(path)) {
     throw new Error('Counter path must be the canonical pathname, without query or hash.');
   }
-  return `${origin}/counter/${encodeURIComponent(path)}.json`;
+  const url = `${origin}/counter/${encodeURIComponent(path)}.json`;
+  // GoatCounter's public visitor counter can cache a 404 for hours. The documented
+  // "start" parameter keeps the same all-time meaning while using a separate cache key
+  // for the one recovery request after a newly tracked path has had time to be stored.
+  return bypassCachedNotFound ? `${url}?start=${RECOVERY_START}` : url;
 }
 
 export function counterValue(data) {
@@ -27,7 +33,29 @@ export function counterValue(data) {
   throw new Error('Counter response did not contain a valid count.');
 }
 
-export function initPageViews(scope = document) {
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchCounter(endpoint) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    return await fetch(endpoint, {
+      signal: controller.signal,
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      cache: 'no-store',
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function initPageViews(scope = document, options = {}) {
+  const requestedDelay = Number(options.syncDelayMs ?? 12000);
+  const syncDelayMs = Number.isFinite(requestedDelay)
+    ? Math.max(0, Math.min(60000, requestedDelay))
+    : 12000;
+
   scope.querySelectorAll('[data-page-views]').forEach(element => {
     if (element.dataset.initialized) return;
     element.dataset.initialized = 'true';
@@ -52,13 +80,19 @@ export function initPageViews(scope = document) {
       show('privacy', '阅读统计已停用', '已尊重浏览器的隐私设置。');
       return;
     }
+
+    const path = element.dataset.path || '';
     let endpoint;
-    try { endpoint = counterURL(origin, element.dataset.path || ''); }
-    catch {
+    let recoveryEndpoint;
+    try {
+      endpoint = counterURL(origin, path);
+      recoveryEndpoint = counterURL(origin, path, true);
+    } catch {
       show('error', '阅读量暂不可用', '统计配置无效。');
       return;
     }
-    // One automatic count.js integration, never an additional manual count().
+
+    // Load exactly one official tracker. It records the visit automatically.
     if (!document.querySelector('script[data-bluehour-goatcounter]')) {
       const script = document.createElement('script');
       script.src = 'https://gc.zgo.at/count.js';
@@ -69,24 +103,39 @@ export function initPageViews(scope = document) {
       let referrer = '';
       try { referrer = document.referrer ? new URL(document.referrer).origin : ''; } catch { /* No referrer. */ }
       script.dataset.goatcounterSettings = JSON.stringify({
-        path: element.dataset.path, title: document.title, referrer, no_events: true,
+        path, title: document.title, referrer, no_events: true,
       });
       document.head.appendChild(script);
     }
-    show('loading', '阅读量加载中', '按文章路径统计访问；公开计数可能延迟更新。');
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    fetch(endpoint, {signal: controller.signal, credentials: 'omit', referrerPolicy: 'no-referrer'})
-      .then(async response => {
-        if (response.status === 404) {
-          show('empty', '暂无阅读数据', '路径尚未有可用记录；不将缺失数据当成 0。');
+
+    const renderResponse = async response => {
+      if (!response.ok) throw new Error(`Counter HTTP ${response.status}`);
+      const value = counterValue(await response.json());
+      show('ready', `${value} 次阅读`, 'GoatCounter 访问次数；不是实时在线人数，公开计数可能缓存最多约四小时。');
+    };
+
+    show('loading', '阅读量加载中', '正在读取 GoatCounter 的公开计数。');
+    void (async () => {
+      try {
+        const first = await fetchCounter(endpoint);
+        if (first.status !== 404) {
+          await renderResponse(first);
           return;
         }
-        if (!response.ok) throw new Error(`Counter HTTP ${response.status}`);
-        const value = counterValue(await response.json());
-        show('ready', `${value} 次阅读`, 'GoatCounter 访问次数；不是实时在线人数，公开计数可能缓存最多约四小时。');
-      })
-      .catch(() => show('error', '阅读量暂不可用', '请检查统计站点的公开计数设置、网络或内容拦截规则。'))
-      .finally(() => clearTimeout(timer));
+
+        // A brand-new path can be counted after this first read already returned 404.
+        // Give GoatCounter time to store the pageview, then avoid the cached bare 404.
+        show('warming', '阅读统计同步中', '新路径正在写入统计；通常约十秒后可读取。');
+        await wait(syncDelayMs);
+        const recovered = await fetchCounter(recoveryEndpoint);
+        if (recovered.status === 404) {
+          show('empty', '暂无阅读数据', '统计端仍未找到这个路径；请检查 GoatCounter 后台或内容拦截器。');
+          return;
+        }
+        await renderResponse(recovered);
+      } catch {
+        show('error', '阅读量暂不可用', '请检查统计站点的公开计数设置、网络或内容拦截规则。');
+      }
+    })();
   });
 }
