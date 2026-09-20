@@ -1,7 +1,7 @@
 import { getCollection } from 'astro:content';
 export const site = {
   name: 'xiaoyumuxi', title: 'xiaoyumuxi · Bluehour', handle: '@xiaoyumuxi',
-  description: '记录代码、思考，与值得分享的一切。一个持续生长的个人数字花园。',
+  description: 'xiaoyumuxi 的技术博客：Java 后端、系统工程、Rust 与 Agent Runtime 的实践记录。',
   github: 'https://github.com/xiaoyumuxi', repository: 'https://github.com/xiaoyumuxi/Blog'
 };
 export function href(path = ''): string {
