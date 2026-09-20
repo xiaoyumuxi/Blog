@@ -465,3 +465,52 @@ dialog{padding:0;color:var(--text);background:var(--surface);border:1px solid va
   background:#e34f6b12!important;
   border-color:#d94b6530!important;
 }
+
+
+/* GitHub Discussions / giscus */
+.discussion-section{
+  margin-top:56px;
+  padding-top:32px;
+  border-top:1px solid var(--border-strong);
+}
+.discussion-heading{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:24px;
+  margin-bottom:23px;
+}
+.discussion-heading>div{max-width:620px}
+.discussion-heading span{
+  display:block;
+  margin-bottom:8px;
+  color:var(--purple);
+  font-size:9px;
+  font-weight:750;
+  letter-spacing:.16em;
+}
+.discussion-heading h2{
+  margin:0 0 8px;
+  padding:0;
+  border:0;
+  font-size:23px;
+}
+.discussion-heading p{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+}
+.discussion-heading>a{
+  flex-shrink:0;
+  color:var(--subtle)!important;
+  text-decoration:none!important;
+  font-size:10px;
+}
+.discussion-heading>a:hover{color:var(--accent)!important}
+.discussion-section .giscus{min-height:120px}
+.discussion-section .giscus-frame{width:100%;border:0}
+@media(max-width:640px){
+  .discussion-section{margin-top:42px;padding-top:26px}
+  .discussion-heading{align-items:flex-start;flex-direction:column;gap:12px}
+  .discussion-heading h2{font-size:21px}
+}
