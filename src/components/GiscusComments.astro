@@ -1,0 +1,74 @@
+---
+import { giscus, giscusEnabled } from '../lib/giscus';
+
+interface Props {
+  postId: string;
+}
+
+const { postId } = Astro.props;
+const term = `post:${postId}`;
+---
+{giscusEnabled && (
+  <section class="discussion-section" data-giscus-section data-pagefind-ignore>
+    <div class="discussion-heading">
+      <div>
+        <span>REACTIONS & DISCUSSION</span>
+        <h2>评论与回应</h2>
+        <p>有补充、纠错或不同理解，都可以直接在这里讨论。</p>
+      </div>
+      <a
+        href="https://github.com/xiaoyumuxi/Blog/discussions"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        GitHub Discussions ↗
+      </a>
+    </div>
+
+    <div class="giscus"></div>
+
+    <script
+      is:inline
+      src="https://giscus.app/client.js"
+      data-repo={giscus.repo}
+      data-repo-id={giscus.repoId}
+      data-category={giscus.category}
+      data-category-id={giscus.categoryId}
+      data-mapping="specific"
+      data-term={term}
+      data-strict="1"
+      data-reactions-enabled="1"
+      data-emit-metadata="0"
+      data-input-position="top"
+      data-theme="dark"
+      data-lang="zh-CN"
+      data-loading="lazy"
+      crossorigin="anonymous"
+      async
+    ></script>
+
+    <script is:inline>
+      (() => {
+        const syncTheme = () => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!(iframe instanceof HTMLIFrameElement) || !iframe.contentWindow) return;
+          const theme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+          iframe.contentWindow.postMessage(
+            { giscus: { setConfig: { theme } } },
+            'https://giscus.app',
+          );
+        };
+
+        const observer = new MutationObserver(syncTheme);
+        observer.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ['data-theme'],
+        });
+
+        window.addEventListener('message', (event) => {
+          if (event.origin === 'https://giscus.app') syncTheme();
+        });
+      })();
+    </script>
+  </section>
+)}
