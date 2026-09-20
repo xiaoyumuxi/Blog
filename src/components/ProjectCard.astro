@@ -1,0 +1,28 @@
+---
+import Icon from './Icon.astro';
+interface Project {
+  name: string;
+  description: string;
+  tech: readonly string[];
+  href: string;
+  label: string;
+  tone: string;
+}
+interface Props { project: Project; index: number; }
+const { project, index } = Astro.props;
+---
+<article class:list={['project-card', `project-${project.tone}`]}>
+  <div class="project-card-glow" aria-hidden="true"></div>
+  <div class="project-card-top">
+    <span class="project-index">{String(index + 1).padStart(2, '0')}</span>
+    <span class="project-label">{project.label}</span>
+  </div>
+  <div>
+    <h3>{project.name}</h3>
+    <p>{project.description}</p>
+  </div>
+  <div class="project-tech">{project.tech.map(item => <span>{item}</span>)}</div>
+  <a class="project-link" href={project.href} target="_blank" rel="noopener noreferrer">
+    GitHub <Icon name="arrow" size={16}/>
+  </a>
+</article>
