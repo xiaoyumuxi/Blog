@@ -1,0 +1,99 @@
+name: Build, verify and publish
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: bluehour-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pages: read
+    outputs:
+      pages_enabled: ${{ steps.pages.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Report dependency audit
+        run: npm audit || true
+      - name: Type and content checks
+        run: npm run check
+      - name: Build static site and search index
+        run: npm run build
+      - name: Install browser and CJK fonts
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y fonts-noto-cjk
+      - name: Verify actual pages and downloads
+        run: npm run test:site
+      - name: Upload verification screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-preview
+          path: test-results/
+          retention-days: 14
+      - name: Upload complete build
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluehour-site
+          path: |
+            dist/
+            package-lock.json
+          retention-days: 14
+      - name: Save initial dependency lock without overwriting new commits
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if ! git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
+            git fetch origin main
+            if [ "$(git rev-parse origin/main)" = "$GITHUB_SHA" ]; then
+              git config user.name 'github-actions[bot]'
+              git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+              git add package-lock.json
+              git commit -m 'chore: lock verified dependencies'
+              git push origin HEAD:main
+            else
+              echo 'Newer changes exist; dependency lock remains available in the build artifact.'
+            fi
+          fi
+      - name: Detect Pages configuration
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.build_type' 2>/dev/null | grep -qx workflow; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+            echo '::notice::Site verified. To publish, choose Settings > Pages > Source > GitHub Actions, then run this workflow again.'
+          fi
+      - name: Upload Pages artifact
+        if: steps.pages.outputs.enabled == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    if: needs.build.outputs.pages_enabled == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

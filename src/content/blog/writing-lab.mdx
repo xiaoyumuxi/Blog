@@ -1,0 +1,121 @@
+---
+title: "不止 Markdown：文章的更多可能"
+description: "代码、公式、流程图、图片与文件。用一篇文章，看看这个博客可以承载什么。"
+date: 2026-09-19
+tags: [技术写作, MDX]
+art: code
+sample: true
+---
+
+import Callout from '../../components/Callout.astro';
+import DownloadCard from '../../components/DownloadCard.astro';
+import Tabs from '../../components/Tabs.astro';
+import Gallery from '../../components/Gallery.astro';
+import PDFViewer from '../../components/PDFViewer.astro';
+
+<Callout title="这是一间写作实验室" type="tip">
+这篇示例用来检验实际渲染效果，也可以直接复制成你的文章模板。示例内容不是个人项目成果。
+</Callout>
+
+## 文字，也可以有层次
+
+普通段落、**重点强调**、*斜体*、~~删除线~~和 `行内代码`，都可以自然地放在一起。需要补充说明时，还可以使用脚注。[^note]
+
+> 好的呈现方式不是装饰，而是帮助读者理解。
+
+| 内容 | 写法 | 用途 |
+| --- | --- | --- |
+| 普通文章 | Markdown / MDX | 写作与笔记 |
+| 技术内容 | 代码块、公式、Mermaid | 解释实现与设计 |
+| 资源分享 | 下载卡片、PDF 预览 | 文档与附件 |
+
+- [x] 标题、引用、表格与脚注
+- [x] 数学公式与代码高亮
+- [x] 流程图与下载卡片
+- [ ] 写下自己的下一篇文章
+
+## 让代码更好读
+
+代码块带有文件名、行号、复制按钮。下面的示例还演示了高亮行：
+
+```ts title="hello.ts" {2-4}
+type Note = { title: string; published: boolean };
+const notes: Note[] = [
+  { title: '一个新的想法', published: true },
+];
+const published = notes.filter(note => note.published);
+console.log(published);
+```
+
+差异可以用 `diff` 代码块表达：
+
+```diff title="记录一次小改进"
+- const result = items;
++ const result = items.filter(item => item.published);
+```
+
+<Tabs items={[
+  {label:'npm',content:'npm install\nnpm run dev'},
+  {label:'pnpm',content:'pnpm install\npnpm dev'},
+  {label:'构建预览',content:'npm run build\nnpm run preview'}
+]} />
+
+## 用公式说明关系
+
+行内公式：$a^2 + b^2 = c^2$。
+
+块级公式由 KaTeX 渲染：
+
+$$
+\operatorname{Attention}(Q,K,V)
+= \operatorname{softmax}\!\left(\frac{QK^{\mathsf T}}{\sqrt{d_k}}\right)V
+$$
+
+公式只是排版示例，不包含性能或实验结论。
+
+## 把过程画出来
+
+下面的图来自普通的 Mermaid 代码围栏，不需要手动导出图片：
+
+```mermaid
+flowchart LR
+  A[写下一个想法] --> B[Markdown / MDX]
+  B --> C[提交到 GitHub]
+  C --> D[构建与检查]
+  D --> E[发布到站点]
+  E --> F[分享给读者]
+```
+
+图表脚本只会在包含流程图的页面加载，内容保持在自己的站点内。
+
+## 给图片留一点空间
+
+下面是站点附带的两张原创 SVG 示例图，点击可以放大。换成自己的图片即可使用。
+
+<Gallery images={[
+  {src:'images/blue-orbit.svg',alt:'蓝紫轨道：围绕中心的渐变圆环',caption:'Blue orbit · SVG 示例'},
+  {src:'images/violet-grid.svg',alt:'紫色网格：逐渐延伸的线条与光点',caption:'Violet grid · SVG 示例'}
+]} />
+
+## 把文件一起分享
+
+下载不只是一个文字链接。卡片可以标注格式和说明，文件也确实存在：
+
+<DownloadCard title="Markdown 写作模板" description="下载后修改标题与正文，即可开始写作。" file="downloads/writing-template.md" format="MD" />
+
+<DownloadCard title="Bluehour 示例资源包" description="写作模板与 JSON 数据的 ZIP 压缩包。" file="downloads/bluehour-starter.zip" format="ZIP" />
+
+<PDFViewer src="downloads/bluehour-sample.pdf" title="PDF 在线预览示例" />
+
+## 折叠补充说明
+
+<details>
+<summary>所有文件都能直接在线预览吗？</summary>
+<div>不是。下载可以链接任意附件，但在线预览依赖浏览器或专门组件。PDF 在桌面浏览器里通常可以预览；DOCX、PPTX、XLSX 建议提供下载，或先转换为 PDF。视频和音频也取决于浏览器支持的编码。</div>
+</details>
+
+<Callout type="warning" title="公开站点的边界">
+放进 public 目录并部署的文件是公开资源，没有登录鉴权。不要上传身份证明、密钥或其他不希望公开的材料。MDX 可以执行代码，只提交你自己信任的内容。
+</Callout>
+
+[^note]: 这是一个可跳转的脚注示例。

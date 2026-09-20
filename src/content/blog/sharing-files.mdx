@@ -1,0 +1,75 @@
+---
+title: "把有用的东西，放上资源架"
+description: "如何添加附件、下载卡片和 PDF 预览，以及公开分享前需要注意的边界。"
+date: 2026-09-18
+tags: [资源分享, 使用指南]
+art: files
+sample: true
+---
+
+import DownloadCard from '../../components/DownloadCard.astro';
+import Callout from '../../components/Callout.astro';
+
+## 先放入文件
+
+把附件放进 `public/downloads/`。这个站点不会在构建时转换它们，而是按原文件发布。
+
+```text title="文件目录"
+public/
+└── downloads/
+    ├── report.pdf
+    ├── source.zip
+    └── benchmark.csv
+```
+
+文件名建议使用英文、数字和短横线，避免路径处理时产生歧义。
+
+## 在文章中添加卡片
+
+在 MDX 文章中导入下载组件，然后写入文件路径：
+
+```mdx title="文章中的下载入口"
+import DownloadCard from '../../components/DownloadCard.astro';
+
+<DownloadCard
+  title="报告文件"
+  description="这里写版本、内容或注意事项。"
+  file="downloads/report.pdf"
+  format="PDF"
+/>
+```
+
+上面的 `report.pdf` 是写法示例，需要替换为你实际添加的文件。下面这个模板链接可以立即下载：
+
+<DownloadCard title="下载实际示例模板" file="downloads/writing-template.md" format="MD" description="修改后就可以开始写第一篇文章。" />
+
+## 放到资源页面
+
+编辑 `src/data/resources.ts`，增加一条资源信息。文件大小会在构建时从文件读取，不必手工估计。
+
+```ts title="资源条目"
+{
+  title: '我的报告',
+  description: '文件说明',
+  file: 'downloads/report.pdf',
+  format: 'PDF'
+}
+```
+
+如果条目引用了不存在的文件，构建会失败。这比上线后留给读者一个失效的下载按钮更容易发现问题。
+
+## 下载与预览是两回事
+
+PDF 有独立的预览组件，也保留了下载入口。Office 文档可以提供原文件下载；需要网页内阅读时，先转换成 PDF 是一种更直接的方式。
+
+音视频可在 MDX 中使用原生播放器，但浏览器需要支持相应的编码。第三方网站的 iframe 嵌入还受到对方站点安全设置的限制。
+
+<Callout title="公开分享之前" type="warning">
+检查附件是否包含访问密钥、内部链接或个人敏感信息。public 目录不是私有网盘；删除文件也不代表历史版本或外部副本消失。
+</Callout>
+
+## 以后文件变大了怎么办
+
+大型文件不必与站点源码放在一起。可以改用对象存储或版本发布附件，在文章中引用 HTTPS 地址。跨域链接的 `download` 属性不一定会被浏览器采用，最终下载行为也受文件服务器的响应头影响。
+
+参考：[Astro 项目结构与 public 目录](https://docs.astro.build/en/basics/project-structure/)、[HTML 下载属性](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a#download)。

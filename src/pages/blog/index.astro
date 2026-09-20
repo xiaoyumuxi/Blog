@@ -1,0 +1,8 @@
+---
+import Base from '../../layouts/Base.astro';
+import PostCard from '../../components/PostCard.astro';
+import { posts } from '../../lib/site';
+const all=await posts();
+const tags=[...new Set(all.flatMap(post=>post.data.tags))];
+---
+<Base title="文章"><header class="page-heading"><div class="eyebrow">THE NOTEBOOK</div><h1>思考，慢慢成形<span class="gradient-text">.</span><span class="inline-count"><span data-result-count>{all.length}</span> 篇</span></h1><p>一些技术实践，一些学习笔记，还有一路上收集的灵感。<br/>从这里开始，遇见一个新的想法。</p></header><section class="page-content" aria-label="文章列表"><div class="filters" aria-label="按标签筛选文章"><button data-filter="" aria-pressed="true">全部文章</button>{tags.map(tag=><button data-filter={tag} aria-pressed="false">{tag}</button>)}</div><div class="post-grid">{all.map(post=><PostCard post={post}/>)}</div><p class="empty-state" data-empty hidden>这里还没有文章，试试其他标签。</p></section></Base>

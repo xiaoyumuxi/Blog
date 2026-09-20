@@ -1,0 +1,16 @@
+---
+import Base from '../layouts/Base.astro';
+import Art from '../components/Art.astro';
+import Icon from '../components/Icon.astro';
+import PostCard from '../components/PostCard.astro';
+import { posts, href } from '../lib/site';
+const all = await posts();
+const recent = all.slice(0,6);
+const tags = [...new Set(recent.flatMap(p=>p.data.tags))].slice(0,5);
+---
+<Base>
+  <section class="hero" aria-labelledby="hero-title"><div class="hero-copy"><div class="eyebrow">A LITTLE SPACE FOR BIG IDEAS</div><h1 id="hero-title">把想法写成代码，<br/><span class="gradient-text">把探索留在这里。</span></h1><p>你好，这里是 xiaoyumuxi 的数字花园。<br/>关于技术、创造，以及那些不想忘记的灵感。</p><div class="hero-actions"><a class="button button-primary" href={href('blog/')}>开始阅读 <Icon name="right" size={17}/></a><a class="button" href={href('about/')}>认识一下 <Icon name="arrow" size={16}/></a></div><div class="hero-bottom"><span class="tiny-dot"></span> ALWAYS CURIOUS. ALWAYS BUILDING.</div></div><Art hero/></section>
+  <div class="intro-strip"><div class="intro-item"><span class="intro-icon"><Icon name="code"/></span><div><strong>在代码里探索</strong><small>从一个想法，到一次实现</small></div></div><div class="intro-item"><span class="intro-icon"><Icon name="book"/></span><div><strong>在文字里沉淀</strong><small>把理解写下来，让思考发生</small></div></div><div class="intro-item"><span class="intro-icon"><Icon name="layers"/></span><div><strong>把有用的分享出来</strong><small>文档、源码与可下载的灵感</small></div></div></div>
+  <section aria-labelledby="writing-title"><div class="section-header"><div><div class="eyebrow">WRITING & EXPLORING</div><h2 id="writing-title">最近写下的<span style="color:var(--purple)">.</span></h2></div><a class="section-link" href={href('blog/')}>全部文章 <Icon name="arrow" size={17}/></a></div><div class="filters" aria-label="按标签筛选文章"><button data-filter="" aria-pressed="true">全部</button>{tags.map(tag=><button data-filter={tag} aria-pressed="false">{tag}</button>)}</div><div class="post-grid">{recent.map(post=><PostCard post={post}/>)}</div><p class="empty-state" data-empty hidden>这个标签下还没有文章。</p></section>
+  <section class="home-lower" aria-label="资源与随记"><div class="resource-teaser"><div class="small-heading"><h2>不止于文字</h2><a class="section-link" href={href('resources/')}>资源架 <Icon name="arrow" size={16}/></a></div><div class="teaser-files"><a href={href('downloads/writing-template.md')} download><Icon name="file" size={23}/><span>写作起点<small>MARKDOWN · 模板下载</small></span></a><a href={href('downloads/bluehour-sample.pdf')} download><Icon name="download" size={23}/><span>随手带走<small>PDF · 示例文档</small></span></a></div></div><div class="note-card"><div class="eyebrow">A NOTE TO MYSELF</div><p>不必等一切准备好，<br/>有一个想法，就开始吧。</p><small>记录的意义，是让每一步都有迹可循。</small></div></section>
+</Base>

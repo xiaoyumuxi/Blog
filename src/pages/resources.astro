@@ -1,0 +1,7 @@
+---
+import Base from '../layouts/Base.astro';
+import DownloadCard from '../components/DownloadCard.astro';
+import { resources } from '../data/resources';
+import { href } from '../lib/site';
+---
+<Base title="资源架"><header class="page-heading"><div class="eyebrow">THE RESOURCE SHELF</div><h1>有用的，带走就好<span class="gradient-text">.</span></h1><p>让分享不止停留在文字。文档、模板、数据与源码，都可以在这里找到自己的位置。</p></header><section class="page-content" aria-label="下载资源"><div class="resource-grid">{resources.map(resource=><DownloadCard {...resource}/>)}</div><div class="resource-notice">目前展示的是可实际下载的站点示例文件。替换 <code>public/downloads/</code> 中的附件，并编辑 <code>src/data/resources.ts</code>，即可发布你自己的资源。<br/><a href={href('blog/sharing-files/')} style="color:var(--accent)">阅读文件发布指南 →</a></div></section></Base>

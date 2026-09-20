@@ -1,0 +1,12 @@
+---
+import { href } from '../lib/site';
+import Icon from './Icon.astro';
+interface Props { title: string; file: string; description?: string; format?: string; size?: string; }
+const { title, file, description = '', format = 'FILE', size = '' } = Astro.props;
+const url = href(file);
+---
+<a class="download-card" href={url} download rel="noopener">
+  <span class="download-icon"><Icon name="file" size={25}/></span>
+  <span class="download-info"><strong>{title}</strong>{description && <span>{description}</span>}<small>{format}{size && ` · ${size}`}</small></span>
+  <span class="download-action"><Icon name="download" size={20}/><span>下载</span></span>
+</a>

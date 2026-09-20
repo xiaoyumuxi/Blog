@@ -1,0 +1,38 @@
+---
+import '../styles/global.css';
+import 'katex/dist/katex.min.css';
+import Icon from '../components/Icon.astro';
+import { site, href } from '../lib/site';
+interface Props { title?: string; description?: string; article?: boolean; }
+const {title, description=site.description, article=false}=Astro.props;
+const pageTitle=title ? `${title} · ${site.title}` : site.title;
+const path=Astro.url.pathname;
+const nav=[['首页',''],['文章','blog/'],['资源','resources/'],['关于','about/']];
+const canonical=new URL(Astro.url.pathname, Astro.site);
+---
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{pageTitle}</title><meta name="description" content={description}/>
+  <link rel="canonical" href={canonical}/><link rel="icon" type="image/svg+xml" href={href('favicon.svg')}/>
+  <meta property="og:title" content={pageTitle}/><meta property="og:description" content={description}/><meta property="og:type" content={article?'article':'website'}/><meta property="og:url" content={canonical}/><meta property="og:locale" content="zh_CN"/>
+  <meta name="color-scheme" content="dark light"/><meta name="theme-color" content="#0b0e1b"/>
+  <link rel="alternate" type="application/rss+xml" title={site.title} href={href('rss.xml')}/>
+  <script is:inline>try{const t=localStorage.getItem('bluehour-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
+</head>
+<body data-base={href()}>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <div class="ambient ambient-one" aria-hidden="true"></div><div class="ambient ambient-two" aria-hidden="true"></div>
+  <header class="site-header"><div class="header-inner">
+    <a class="brand" href={href()} aria-label="xiaoyumuxi，返回首页"><span class="brand-mark">X<span>✦</span></span><span>xiaoyumuxi<span class="brand-sub">BLUEHOUR</span></span></a>
+    <nav class="desktop-nav" aria-label="主要导航">{nav.map(([label,url]) => <a href={href(url)} class:list={{active:path===href(url)}} aria-current={path===href(url)?'page':undefined}>{label}</a>)}</nav>
+    <div class="header-actions"><button class="search-trigger" data-search-open aria-label="搜索文章"><Icon name="search" size={18}/><span>搜索</span><kbd>⌘ K</kbd></button><button class="icon-button theme-toggle" data-theme-toggle aria-label="切换明暗主题"><span class="sun-icon"><Icon name="sun"/></span><span class="moon-icon"><Icon name="moon"/></span></button><a class="github-link" href={site.github} target="_blank" rel="noopener noreferrer">GitHub <Icon name="arrow" size={16}/></a></div>
+  </div><nav class="mobile-nav" aria-label="移动导航">{nav.map(([label,url])=><a href={href(url)} aria-current={path===href(url)?'page':undefined}>{label}</a>)}</nav></header>
+  <main id="main" class="site-main"><slot /></main>
+  <footer class="site-footer"><div><a class="brand footer-brand" href={href()}><span class="brand-mark">X<span>✦</span></span><span>xiaoyumuxi <span class="footer-tagline">保持好奇，持续创造。</span></span></a><p>© {new Date().getFullYear()} {site.name}. Built with Astro. Crafted in blue & violet.</p></div><div class="footer-links"><a href={href('rss.xml')}><Icon name="rss" size={16}/> RSS</a><a href={site.repository} target="_blank" rel="noopener noreferrer">站点源码 <Icon name="arrow" size={16}/></a><button data-scroll-top>回到顶部 ↑</button></div></footer>
+  <dialog id="search-dialog" class="search-dialog" aria-labelledby="search-title"><div class="dialog-header"><h2 id="search-title">寻找一段灵感</h2><button class="icon-button" data-close-dialog aria-label="关闭搜索"><Icon name="close"/></button></div><label class="search-field"><Icon name="search"/><input id="search-input" type="search" placeholder="搜索文章、技术关键词…" autocomplete="off" aria-label="搜索关键词"/></label><p class="search-status" id="search-status" aria-live="polite">输入关键词，搜索整个站点。</p><div id="search-results"></div><div class="search-footer"><span>本地全文搜索 · 不上传搜索词</span><kbd>ESC 关闭</kbd></div></dialog>
+  <dialog id="lightbox" class="lightbox" aria-label="图片放大预览"><button class="icon-button" data-close-dialog aria-label="关闭图片"><Icon name="close"/></button><img alt=""/><p></p></dialog>
+  <script src="../scripts/client.ts"></script>
+</body>
+</html>

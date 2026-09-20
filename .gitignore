@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.astro/
+.env
+.env.*
+!.env.example
+.DS_Store
+test-results/
+playwright-report/
+# Generated public samples (created before dev/check/build)
+public/downloads/bluehour-sample.pdf
+public/downloads/bluehour-starter.zip

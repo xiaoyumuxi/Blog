@@ -1,0 +1,9 @@
+---
+interface Props { items: {label:string; content:string}[]; }
+const {items} = Astro.props;
+const id = `tabs-${crypto.randomUUID()}`;
+---
+<div class="tabs" data-tabs>
+  <div class="tab-buttons" role="tablist" aria-label="切换内容">{items.map((item,i) => <button id={`${id}-tab-${i}`} role="tab" aria-selected={i===0} aria-controls={`${id}-panel-${i}`} tabindex={i===0?0:-1}>{item.label}</button>)}</div>
+  {items.map((item,i) => <div id={`${id}-panel-${i}`} role="tabpanel" aria-labelledby={`${id}-tab-${i}`} tabindex="0" hidden={i!==0}><pre><code>{item.content}</code></pre></div>)}
+</div>

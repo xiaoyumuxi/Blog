@@ -1,0 +1,6 @@
+---
+import { href } from '../lib/site';
+interface Props { images: {src:string; alt:string; caption?:string}[]; }
+const {images} = Astro.props;
+---
+<div class="gallery">{images.map(image => <figure><button type="button" data-lightbox={href(image.src)} data-alt={image.alt} aria-label={`放大图片：${image.alt}`}><img src={href(image.src)} alt={image.alt} loading="lazy" width="800" height="500"/></button>{image.caption && <figcaption>{image.caption}</figcaption>}</figure>)}</div>

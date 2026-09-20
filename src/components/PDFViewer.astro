@@ -1,0 +1,7 @@
+---
+import { href } from '../lib/site';
+interface Props { src: string; title?: string; }
+const {src,title='PDF 文档预览'} = Astro.props;
+const url=href(src);
+---
+<div class="pdf-viewer"><div><span>{title}</span><a href={url} download>下载 PDF ↗</a></div><iframe src={url} title={title} loading="lazy" height="480"></iframe><small>移动浏览器可能不支持内嵌预览，请使用上方下载链接。</small></div>
