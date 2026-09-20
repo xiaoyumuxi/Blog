@@ -3,7 +3,7 @@
   "engines": { "node": ">=22.12.0" },
   "scripts": { "predev":"node scripts/generate-downloads.mjs", "dev": "astro dev", "precheck":"node scripts/generate-downloads.mjs", "check": "astro check", "prebuild":"node scripts/generate-downloads.mjs", "build": "astro build && pagefind --site dist", "preview": "astro preview", "new": "node scripts/new-post.mjs", "test:site": "node scripts/verify.mjs" },
   "dependencies": {
-    "astro": "7.3.3", "@astrojs/mdx": "7.0.5", "@astrojs/markdown-remark": "7.2.2", "@astrojs/rss": "4.0.19", "@astrojs/sitemap": "3.7.3", "astro-expressive-code": "0.44.0", "@expressive-code/plugin-line-numbers": "0.44.0", "remark-math": "6.0.0", "rehype-katex": "7.0.1", "katex": "^0.16.22", "mermaid": "^11.12.0", "pagefind": "1.5.2"
+    "astro": "7.3.3", "@astrojs/mdx": "^7.0.5", "@astrojs/markdown-remark": "7.3.1", "@astrojs/rss": "4.0.19", "@astrojs/sitemap": "3.7.3", "astro-expressive-code": "0.44.0", "@expressive-code/plugin-line-numbers": "0.44.0", "remark-math": "6.0.0", "rehype-katex": "7.0.1", "katex": "^0.16.22", "mermaid": "^11.12.0", "pagefind": "1.5.2"
   },
   "devDependencies": { "@astrojs/check": "0.9.10", "typescript": "5.9.3", "@playwright/test": "^1.58.2" }
 }
