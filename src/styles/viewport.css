@@ -1,0 +1,2 @@
+/* Decorative backgrounds must not enlarge the mobile viewport. */
+.ambient { max-width: 100vw; }
