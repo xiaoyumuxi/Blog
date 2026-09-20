@@ -1,0 +1,50 @@
+---
+const topics = [
+  ['MySQL', '#mysql'],
+  ['Redis', '#redis'],
+  ['JUC', '#juc'],
+  ['Java 集合', '#java集合'],
+  ['Java 基础', '#java基础'],
+  ['JVM', '#jvm'],
+  ['SSM', '#ssm'],
+  ['计算机网络', '#计算机网络'],
+  ['操作系统', '#操作系统'],
+  ['Linux', '#linux'],
+  ['AI 应用', '#ai应用开发'],
+] as const;
+---
+<section class="interview-guide" data-interview-guide aria-label="文章快速导航">
+  <div class="interview-guide-head">
+    <div>
+      <span class="interview-guide-kicker">QUICK REVIEW</span>
+      <strong>11 个主题 · 214 个折叠项</strong>
+      <small>按模块跳转，或一次展开整篇进行检索。</small>
+    </div>
+    <div class="interview-guide-actions">
+      <button type="button" data-details-expand>全部展开</button>
+      <button type="button" data-details-collapse>全部折叠</button>
+    </div>
+  </div>
+  <nav class="interview-topic-nav" aria-label="八股章节">
+    {topics.map(([label, href]) => <a href={href}>{label}</a>)}
+  </nav>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-interview-guide]').forEach((root) => {
+    const article = root.closest<HTMLElement>('[data-article]');
+    if (!article) return;
+
+    article.dataset.interviewArticle = '';
+    const details = () => Array.from(article.querySelectorAll<HTMLDetailsElement>('details'));
+
+    root.querySelector<HTMLButtonElement>('[data-details-expand]')?.addEventListener('click', () => {
+      details().forEach((item) => { item.open = true; });
+    });
+
+    root.querySelector<HTMLButtonElement>('[data-details-collapse]')?.addEventListener('click', () => {
+      details().forEach((item) => { item.open = false; });
+      root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
