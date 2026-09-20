@@ -152,3 +152,17 @@ PDF 与 ZIP 示例由 `scripts/generate-downloads.mjs` 在启动、检查或构�
 - KaTeX：https://katex.org/
 
 本仓库不替第三方依赖变更其许可证；具体依赖许可请查看各包信息。
+
+
+## 评论与 reactions
+
+文章模板已接入 giscus，Discussion key 固定为 `post:{文章 id}`，所以改文章标题不会丢失原评论绑定。主帖 reactions 已开启，评论框位于评论列表上方，并跟随站点明暗主题。
+
+giscus 需要仓库先启用 GitHub Discussions，并安装 giscus GitHub App。启用后获取一个 Discussion 分类的 ID，在构建环境中提供：
+
+```bash
+PUBLIC_GISCUS_CATEGORY=Announcements
+PUBLIC_GISCUS_CATEGORY_ID=DIC_xxxxxxxxx
+```
+
+未提供 `PUBLIC_GISCUS_CATEGORY_ID` 时，评论区不会渲染，也不会影响页面构建或访问。
