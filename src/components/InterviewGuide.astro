@@ -48,3 +48,14 @@ const topics = [
     });
   });
 </script>
+
+<style is:global>
+  /* Legacy answer indentation must not apply to inline strong/span/code nodes. */
+  .prose[data-interview-article] > details > details > :where(:not(summary)) {
+    margin-inline: 0;
+  }
+  /* Only real answer blocks get the Q-label indentation. */
+  .prose[data-interview-article] > details > details > :where(p, ul, ol, pre, blockquote, table, figure, div) {
+    margin-inline: 28px 8px;
+  }
+</style>

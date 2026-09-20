@@ -1,0 +1,29 @@
+---
+import analytics from '../data/analytics.json';
+import { goatcounterOrigin } from '../scripts/page-views.mjs';
+const counterOrigin = goatcounterOrigin(analytics.goatcounterSiteCode);
+const track = Boolean(counterOrigin && import.meta.env.PROD);
+---
+<span
+  class="page-views"
+  data-page-views
+  data-pagefind-ignore
+  data-counter-origin={counterOrigin}
+  data-site-origin={Astro.site?.origin || ''}
+  data-path={Astro.url.pathname}
+  data-track={String(track)}
+  data-state={counterOrigin ? 'loading' : 'disabled'}
+  title={counterOrigin ? '需要 JavaScript 加载统计；公开计数可能延迟更新。' : '尚未配置 GoatCounter；不是 0 次阅读。'}
+>
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+  <span data-views-value aria-live="polite">{counterOrigin ? '阅读量 —' : '阅读统计待启用'}</span>
+</span>
+<script>
+  import { initPageViews } from '../scripts/page-views.mjs';
+  initPageViews();
+</script>
+<style>
+  .page-views { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:inherit; }
+  .page-views svg { flex-shrink:0; }
+  .page-views[data-state='ready'] { color:var(--accent); }
+</style>

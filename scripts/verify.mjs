@@ -3,10 +3,11 @@ import { spawn, execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { verifyFixedFilters } from './verify-fixed-filters.mjs';
+import { verifyArticleExtras, verifyPageViewStates } from './verify-article-extras.mjs';
 const origin='http://127.0.0.1:4321';
 const base=process.env.BASE_PATH ?? '/Blog';
 const url=path=>`${origin}${base.replace(/\/$/,'')}/${path}`;
-execFileSync(process.execPath, ['--test', '.agents/skills/publish-blog/scripts/verify-published.test.mjs'], {stdio:'inherit'});
+execFileSync(process.execPath, ['--test', '.agents/skills/publish-blog/scripts/verify-published.test.mjs', 'scripts/page-views.test.mjs'], {stdio:'inherit'});
 await mkdir('test-results',{recursive:true});
 const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port','4321'],{stdio:'inherit'});
 let browser;
@@ -16,6 +17,8 @@ try {
   for(let i=0;i<90;i++){try{if((await fetch(url(''))).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,1000));}
   assert(ready,'Preview server did not start.');
   browser=await chromium.launch({headless:true});
+  await verifyPageViewStates(browser);
+  results.push('Nine counter states pass with mocked responses; no live analytics requests.');
   const page=await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -39,6 +42,8 @@ try {
   assert(await page.locator('.notion-red').count()>100,'Notion emphasis markers are missing.');
   await page.getByRole('button',{name:'全部展开'}).click();
   assert(await page.locator('details[open]').count()>100,'Expand-all control did not open the interview notes.');
+  await verifyArticleExtras(page);
+  results.push('149 source highlights keep their colors with zero inline margins, including mobile; reading status is visible.');
   await page.getByRole('button',{name:'全部折叠'}).click();
   await page.screenshot({path:'test-results/article.png',fullPage:true,animations:'disabled'});
   results.push('Published MDX interview article, emphasis and folding controls render.');
