@@ -9,95 +9,54 @@ import { posts, href, site } from '../lib/site';
 
 const all = await posts();
 const recent = all.slice(0, 6);
-const focus = [
-  ['Backend', 'Java · Spring · MySQL · Redis', '把框架原理与工程落地放在一起。'],
-  ['Systems', 'Rust · OS · RPC · Networking', '从运行时、协议到操作系统继续往底层走。'],
-  ['Agents', 'Runtime · Tools · Evaluation', '不只做聊天页面，更关注 Agent 的执行与可靠性。'],
-];
 ---
 <Base>
   <section class="profile-hero" aria-labelledby="hero-title">
     <div class="profile-hero-copy">
-      <div class="profile-kicker"><span></span>{site.handle} · BUILDING IN PUBLIC</div>
-
-      <div class="profile-identity">
+      <div class="profile-kicker">
         <div class="avatar-shell">
-          <img src="https://avatars.githubusercontent.com/u/145102356?v=4" alt="xiaoyumuxi 的 GitHub 头像" width="82" height="82"/>
-          <i aria-hidden="true"></i>
+          <img src="https://avatars.githubusercontent.com/u/145102356?v=4" alt="" width="56" height="56"/>
         </div>
         <div>
-          <div class="profile-focus">JAVA BACKEND · SYSTEMS · AI AGENTS</div>
-          <h1 id="hero-title">把系统做扎实，<br/><span class="gradient-text">把 Agent 做到能跑。</span></h1>
+          <strong>计算机专业学生</strong>
+          <span>主要学习后端和系统开发</span>
         </div>
       </div>
 
+      <h1 id="hero-title">你好，我是 <span class="gradient-text">xiaoyumuxi。</span></h1>
+
       <p class="profile-lead">
-        这里记录我对后端、分布式系统与 Agent Runtime 的实践。
-        比起“会用一个框架”，我更想知道它为什么这样工作，以及怎样把它做得更可靠。
+        我主要使用 Java，也在学习 Rust、系统开发和 AI Agent。
+        这里记录一些项目、笔记和学习过程。
       </p>
 
       <div class="hero-actions">
-        <a class="button button-primary" href={site.github} target="_blank" rel="noopener noreferrer">
-          GitHub <Icon name="arrow" size={16}/>
-        </a>
-        <a class="button" href={href('blog/')}>读文章 <Icon name="right" size={16}/></a>
+        <a class="button button-primary" href={href('blog/')}>读文章 <Icon name="right" size={16}/></a>
+        <a class="button" href="#projects">看项目 <Icon name="right" size={16}/></a>
       </div>
 
-      <div class="profile-stack" aria-label="主要技术方向">
-        {['Java', 'Rust', 'Go', 'Python', 'Spring', 'Redis', 'Docker', 'Linux'].map(item => <span>{item}</span>)}
-      </div>
-    </div>
-
-    <div class="profile-console" aria-label="xiaoyumuxi 的技术方向">
-      <div class="console-glow console-glow-a"></div>
-      <div class="console-glow console-glow-b"></div>
-
-      <div class="console-window">
-        <div class="console-bar">
-          <span class="console-dots"><i></i><i></i><i></i></span>
-          <span>profile://xiaoyumuxi</span>
-          <span class="console-live"><i></i> online</span>
-        </div>
-
-        <div class="console-body">
-          <p><b>role</b><span>Computer Science Student</span></p>
-          <p><b>focus</b><span>Java Backend · System Engineering</span></p>
-          <p><b>building</b><span>AI Apps · Agent Runtime</span></p>
-          <p><b>learning</b><span>Rust · Operating Systems</span></p>
-        </div>
-      </div>
-
-      <div class="floating-signal signal-rpc">
-        <small>RPC</small><strong>Netty → Nacos → Protobuf</strong>
-      </div>
-      <div class="floating-signal signal-agent">
-        <small>AGENT</small><strong>Runtime · Tools · Eval</strong>
-      </div>
-
-      <div class="console-orbit" aria-hidden="true">
-        <span></span><span></span><span></span><b>X</b>
+      <div class="profile-links">
+        <span>Java · Rust · AI Agent</span>
+        <a href={site.github} target="_blank" rel="noopener noreferrer">GitHub <Icon name="arrow" size={14}/></a>
       </div>
     </div>
+
+    <aside class="about-note" aria-labelledby="about-note-title">
+      <div class="about-note-head">ABOUT ME</div>
+      <h2 id="about-note-title">目前在学习和实践</h2>
+      <ul>
+        <li><span>后端</span><strong>Java · Spring · MySQL</strong></li>
+        <li><span>系统</span><strong>Rust · Linux · 网络</strong></li>
+        <li><span>AI</span><strong>Agent · Tools · Runtime</strong></li>
+      </ul>
+    </aside>
   </section>
 
-  <section class="home-signals" aria-label="技术方向">
-    {focus.map(([title, stack, text], index) =>
-      <article>
-        <span class="signal-number">0{index + 1}</span>
-        <div>
-          <small>{stack}</small>
-          <h2>{title}</h2>
-          <p>{text}</p>
-        </div>
-      </article>
-    )}
-  </section>
-
-  <section class="selected-work" aria-labelledby="work-title">
+  <section class="selected-work" id="projects" aria-labelledby="work-title">
     <div class="section-header">
       <div>
         <div class="eyebrow">SELECTED WORK</div>
-        <h2 id="work-title">正在构建的东西<span style="color:var(--purple)">.</span></h2>
+        <h2 id="work-title">我的项目<span style="color:var(--purple)">.</span></h2>
       </div>
       <a class="section-link" href={site.github} target="_blank" rel="noopener noreferrer">
         全部仓库 <Icon name="arrow" size={17}/>
@@ -137,9 +96,9 @@ const focus = [
       </div>
     </div>
     <div class="note-card">
-      <div class="eyebrow">CURRENT DIRECTION</div>
-      <p>Backend → Systems → Agent Runtime.</p>
-      <small>把学习路径变成真正运行过的项目，而不是一串关键词。</small>
+      <div class="eyebrow">随手记</div>
+      <p>项目和笔记，慢慢更新。</p>
+      <small>有新的内容会放在这里。</small>
     </div>
   </section>
 </Base>
