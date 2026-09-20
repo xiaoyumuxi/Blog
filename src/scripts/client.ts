@@ -23,7 +23,7 @@ document.querySelectorAll('[data-scroll-top]').forEach(button => button.addEvent
 // Pagefind search runs locally. User queries are never inserted as HTML.
 const dialog = document.querySelector<HTMLDialogElement>('#search-dialog')!;
 const input = document.querySelector<HTMLInputElement>('#search-input')!;
-const status = document.querySelector<HTMLElement>('#search-status')!;
+const statusEl = document.querySelector<HTMLElement>('#search-status')!;
 const results = document.querySelector<HTMLElement>('#search-results')!;
 const openSearch = () => { if (!dialog.open) dialog.showModal(); input.focus(); };
 document.querySelectorAll('[data-search-open]').forEach(button => button.addEventListener('click', openSearch));
@@ -38,8 +38,8 @@ input.addEventListener('input', () => {
   const current = ++request;
   const query = input.value.trim();
   results.replaceChildren();
-  if (!query) { status.textContent = '输入关键词，搜索整个站点。'; return; }
-  status.textContent = '正在寻找…';
+  if (!query) { statusEl.textContent = '输入关键词，搜索整个站点。'; return; }
+  statusEl.textContent = '正在寻找…';
   timer = setTimeout(async () => {
     try {
       pagefindPromise ??= import(/* @vite-ignore */ `${base}pagefind/pagefind.js`);
@@ -48,7 +48,7 @@ input.addEventListener('input', () => {
       const response = await pagefind.search(query);
       const matches = await Promise.all(response.results.slice(0, 12).map((result: {data:()=>Promise<any>}) => result.data()));
       if (current !== request) return;
-      status.textContent = matches.length ? `找到 ${response.results.length} 条结果` : '暂时没有找到，换个关键词试试。';
+      statusEl.textContent = matches.length ? `找到 ${response.results.length} 条结果` : '暂时没有找到，换个关键词试试。';
       matches.forEach(match => {
         const url = new URL(match.url, location.origin);
         if (url.origin !== location.origin) return;
@@ -60,7 +60,7 @@ input.addEventListener('input', () => {
       });
     } catch {
       pagefindPromise = undefined;
-      if (current === request) status.textContent = '搜索索引暂未就绪。本地请先运行 npm run build，再运行 npm run preview。';
+      if (current === request) statusEl.textContent = '搜索索引暂未就绪。本地请先运行 npm run build，再运行 npm run preview。';
     }
   }, 180);
 });
