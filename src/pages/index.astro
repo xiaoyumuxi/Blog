@@ -8,7 +8,8 @@ import { posts, href, site } from '../lib/site';
 
 const all = await posts();
 const recent = all.slice(0, 6);
-const tags = [...new Set(recent.flatMap(p => p.data.tags))].slice(0, 5);
+const hiddenTags = new Set(['八股','Java','MySQL','Redis','数字花园','MDX','使用指南']);
+const tags = [...new Set(recent.flatMap(p => p.data.tags))].filter(tag => !hiddenTags.has(tag)).slice(0, 5);
 const focus = [
   ['Backend', 'Java · Spring · MySQL · Redis', '把框架原理与工程落地放在一起。'],
   ['Systems', 'Rust · OS · RPC · Networking', '从运行时、协议到操作系统继续往底层走。'],
