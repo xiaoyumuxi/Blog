@@ -38,32 +38,24 @@ try {
     await page.locator('[data-filter=""]').click();
     results.push('Tag filtering works.');
   }
-  const labResponse=await page.goto(url('blog/writing-lab/'),{waitUntil:'networkidle'});
-  if(labResponse.ok()) {
-    await page.waitForSelector('pre.mermaid svg',{timeout:30000});
-    assert(await page.locator('.katex').count()>0);
-    assert(await page.locator('.expressive-code').count()>0);
-    await page.getByRole('tab',{name:'pnpm',exact:true}).click();
-    assert((await page.getByRole('tabpanel').filter({visible:true}).innerText()).includes('pnpm'));
-    await page.locator('[data-lightbox]').first().click();
-    assert(await page.locator('#lightbox').isVisible());
-    await page.keyboard.press('Escape');
-    assert(!(await page.locator('#lightbox').isVisible()));
-    await page.screenshot({path:'test-results/article.png',fullPage:true,animations:'disabled'});
-    results.push('MDX, KaTeX, Mermaid, code blocks, tabs and image lightbox work.');
-    const downloadPromise=page.waitForEvent('download');
-    await page.locator('a[download][href$="writing-template.md"]').first().click();
-    const download=await downloadPromise;
-    assert.equal(await download.failure(),null);
-    results.push('A file can actually be downloaded.');
-    await page.getByRole('button',{name:'搜索文章',exact:true}).click();
-    await page.locator('#search-input').fill('公式');
-    await page.waitForSelector('.search-result',{timeout:20000});
-    const searchHref=await page.locator('.search-result').first().getAttribute('href');
-    assert(searchHref.includes(`${base}/blog/`),'Search result is missing the project base path.');
-    await page.keyboard.press('Escape');
-    results.push('Chinese full-text search returns correctly based links.');
-  } else results.push('Writing lab was removed; sample-specific component checks skipped.');
+  const articleResponse=await page.goto(url('blog/backend-interview-basics/'),{waitUntil:'networkidle'});
+  assert(articleResponse.ok(),'Published interview article is missing.');
+  assert(await page.getByRole('heading',{name:'基础八股速通：后端开发核心面试题整理'}).isVisible());
+  assert(await page.locator('details').count()>100,'Interview article folding content is incomplete.');
+  assert(await page.locator('.notion-red').count()>100,'Notion emphasis markers are missing.');
+  await page.getByRole('button',{name:'全部展开'}).click();
+  assert(await page.locator('details[open]').count()>100,'Expand-all control did not open the interview notes.');
+  await page.getByRole('button',{name:'全部折叠'}).click();
+  await page.screenshot({path:'test-results/article.png',fullPage:true,animations:'disabled'});
+  results.push('Published MDX interview article, emphasis and folding controls render.');
+
+  await page.getByRole('button',{name:'搜索文章',exact:true}).click();
+  await page.locator('#search-input').fill('MVCC');
+  await page.waitForSelector('.search-result',{timeout:20000});
+  const searchHref=await page.locator('.search-result').first().getAttribute('href');
+  assert(searchHref.includes(`${base}/blog/`),'Search result is missing the project base path.');
+  await page.keyboard.press('Escape');
+  results.push('Chinese full-text search returns correctly based links.');
   for(const [file,signature] of [['bluehour-sample.pdf','%PDF-'],['bluehour-starter.zip','PK'],['writing-template.md','---']]){
     const response=await page.request.get(url(`downloads/${file}`));
     assert(response.ok(),`Missing download: ${file}`);
@@ -76,7 +68,7 @@ try {
   }
   results.push('Main routes, RSS and sitemap respond.');
   await page.setViewportSize({width:390,height:844});
-  for(const route of ['','blog/writing-lab/','resources/']){
+  for(const route of ['','blog/backend-interview-basics/','resources/']){
     await page.goto(url(route),{waitUntil:'networkidle'});
     const fits=await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1);
     if(!fits) {
@@ -88,7 +80,7 @@ try {
   }
   await page.goto(url(''),{waitUntil:'networkidle'});
   await page.screenshot({path:'test-results/home-mobile.png',fullPage:true,animations:'disabled'});
-  results.push('390px mobile homepage, article and resources have no horizontal overflow.');
+  results.push('390px mobile homepage, published article and resources have no horizontal overflow.');
   assert.deepEqual(errors,[],'Browser JavaScript errors occurred.');
   results.push('No uncaught browser JavaScript errors.');
   await writeFile('test-results/verification.json',JSON.stringify({passed:true,checks:results},null,2));
