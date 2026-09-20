@@ -438,3 +438,30 @@ dialog{padding:0;color:var(--text);background:var(--surface);border:1px solid va
   [data-interview-article] > details > details{padding:0 14px}
   [data-interview-article] > details > details > summary{padding-right:24px}
 }
+
+
+/* Notion emphasis preserved from the source notes */
+.prose .notion-red{
+  color:#ff7d98;
+  font-weight:700;
+  background:linear-gradient(180deg,transparent 56%,#ff5f7d22 56%);
+  padding:0 .12em .03em;
+  border-radius:3px;
+  -webkit-box-decoration-break:clone;
+  box-decoration-break:clone;
+}
+.prose .notion-red strong{color:inherit;font-weight:750}
+.prose .notion-red code{
+  color:#ff8aa2!important;
+  background:#ff637815!important;
+  border-color:#ff718733!important;
+}
+[data-theme=light] .prose .notion-red{
+  color:#c83d5e;
+  background:linear-gradient(180deg,transparent 56%,#e84f6d19 56%);
+}
+[data-theme=light] .prose .notion-red code{
+  color:#b83252!important;
+  background:#e34f6b12!important;
+  border-color:#d94b6530!important;
+}
