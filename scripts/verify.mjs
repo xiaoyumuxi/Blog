@@ -1,10 +1,12 @@
 import { chromium } from '@playwright/test';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { verifyFixedFilters } from './verify-fixed-filters.mjs';
 const origin='http://127.0.0.1:4321';
 const base=process.env.BASE_PATH ?? '/Blog';
 const url=path=>`${origin}${base.replace(/\/$/,'')}/${path}`;
+execFileSync(process.execPath, ['--test', '.agents/skills/publish-blog/scripts/verify-published.test.mjs'], {stdio:'inherit'});
 await mkdir('test-results',{recursive:true});
 const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port','4321'],{stdio:'inherit'});
 let browser;
@@ -28,16 +30,8 @@ try {
   await page.screenshot({path:'test-results/home-light.png',fullPage:true,animations:'disabled'});
   await page.getByRole('button',{name:'切换深色主题'}).click();
   results.push('Theme switch and persisted preference work.');
-  await page.goto(url('blog/'),{waitUntil:'networkidle'});
-  const filter=page.locator('[data-filter]:not([data-filter=""])').first();
-  if(await filter.count()) {
-    const tag=await filter.getAttribute('data-filter');
-    await filter.click();
-    assert(await page.locator('[data-post-card]:visible').count()>0);
-    for(const card of await page.locator('[data-post-card]:visible').all()) assert(JSON.parse(await card.getAttribute('data-tags')).includes(tag));
-    await page.locator('[data-filter=""]').click();
-    results.push('Tag filtering works.');
-  }
+  await verifyFixedFilters(page, url);
+  results.push('Both pages use the fixed configuration; empty categories remain visible and metadata-only tags remain queryable.');
   const articleResponse=await page.goto(url('blog/backend-interview-basics/'),{waitUntil:'networkidle'});
   assert(articleResponse.ok(),'Published interview article is missing.');
   assert(await page.getByRole('heading',{name:'基础八股速通：后端开发核心面试题整理'}).isVisible());

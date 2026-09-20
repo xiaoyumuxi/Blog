@@ -1,0 +1,9 @@
+---
+import filters from '../data/article-filters.json';
+// Owner-maintained navigation; never derive these buttons from article tags.
+---
+<div class="filters" data-fixed-filters aria-label="按固定栏目筛选文章">
+  {filters.map(({ label, tag }) => (
+    <button type="button" data-filter={tag} aria-pressed={tag === '' ? 'true' : 'false'}>{label}</button>
+  ))}
+</div>

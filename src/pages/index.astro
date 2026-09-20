@@ -2,14 +2,13 @@
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import PostCard from '../components/PostCard.astro';
+import ArticleFilters from '../components/ArticleFilters.astro';
 import ProjectCard from '../components/ProjectCard.astro';
 import { projects } from '../data/projects';
 import { posts, href, site } from '../lib/site';
 
 const all = await posts();
 const recent = all.slice(0, 6);
-const hiddenTags = new Set(['八股','Java','MySQL','Redis','数字花园','MDX','使用指南']);
-const tags = [...new Set(recent.flatMap(p => p.data.tags))].filter(tag => !hiddenTags.has(tag)).slice(0, 5);
 const focus = [
   ['Backend', 'Java · Spring · MySQL · Redis', '把框架原理与工程落地放在一起。'],
   ['Systems', 'Rust · OS · RPC · Networking', '从运行时、协议到操作系统继续往底层走。'],
@@ -117,12 +116,9 @@ const focus = [
       </div>
       <a class="section-link" href={href('blog/')}>全部文章 <Icon name="arrow" size={17}/></a>
     </div>
-    <div class="filters" aria-label="按标签筛选文章">
-      <button data-filter="" aria-pressed="true">全部</button>
-      {tags.map(tag => <button data-filter={tag} aria-pressed="false">{tag}</button>)}
-    </div>
+    <ArticleFilters />
     <div class="post-grid">{recent.map(post => <PostCard post={post}/>)}</div>
-    <p class="empty-state" data-empty hidden>这个标签下还没有文章。</p>
+    <p class="empty-state" data-empty hidden>这个栏目下还没有文章。</p>
   </section>
 
   <section class="home-lower" aria-label="资源与随记">

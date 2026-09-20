@@ -1,0 +1,6 @@
+interface:
+  display_name: "发布 Bluehour 博客"
+  short_description: "将指定内容保真转成文章，保留标签与高亮并验证部署"
+  default_prompt: "使用 $publish-blog，先读取仓库 AGENTS.md，再把我提供的内容转换、校验并按授权发布；不要改动固定筛选栏。"
+policy:
+  allow_implicit_invocation: true
