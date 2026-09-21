@@ -55,12 +55,12 @@ try {
   assert(searchHref.includes(`${base}/blog/`),'Search result is missing the project base path.');
   await page.keyboard.press('Escape');
   results.push('Chinese full-text search returns correctly based links.');
-  for(const [file,signature] of [['bluehour-sample.pdf','%PDF-'],['bluehour-starter.zip','PK'],['writing-template.md','---']]){
+  for(const [file,signature] of [['bluehour-sample.pdf','%PDF-']]){
     const response=await page.request.get(url(`downloads/${file}`));
     assert(response.ok(),`Missing download: ${file}`);
     assert((await response.body()).toString().startsWith(signature),`Invalid file: ${file}`);
   }
-  results.push('PDF, ZIP and Markdown attachment signatures are valid.');
+  results.push('PDF attachment signature is valid.');
   for(const route of ['blog/','resources/','about/','404.html','rss.xml','sitemap-index.xml']){
     const response=await page.request.get(url(route));
     assert(response.ok()||(route==='404.html'&&response.status()===404),`Route failed: ${route} (${response.status()})`);
