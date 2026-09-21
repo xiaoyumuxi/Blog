@@ -184,11 +184,47 @@ art: orbit # orbit / code / files
 
 ### 从 CSDN 迁移文章
 
-仓库内置 `scripts/import-csdn.py` 和 **Import CSDN archive** 工作流。它会读取 `fancyfor` 的公开 CSDN 文章，把正文转成 Markdown，并保留原始发布日期、标签、原文链接和 CSDN 分类专栏。
+CSDN 会拦截 GitHub Actions 的云服务器 IP，因此迁移脚本改为在**本机浏览器**里运行。脚本使用 Playwright 打开真实 Chromium，会自动读取 `fancyfor` 的公开文章、原始发布日期、标签和“收录于”专栏，并生成本站的 Markdown 与 `series` 元数据。
 
-CSDN 分类专栏会映射为本站的 **系列**，访问 `/series/` 可以按课程或主题连续阅读。重新运行该工作流可以增量刷新已有的 CSDN 迁移文章。
+第一次使用：
 
-> 导入器只处理公开文章。图片会尽量复制到 `public/images/csdn/`；下载失败的图片会保留原始 CDN 地址。
+```bash
+npm install
+npx playwright install chromium
+npm run import:csdn
+```
+
+默认会打开一个可见的 Chromium。若 CSDN 弹出登录或验证码，在浏览器里完成后回到终端按 Enter，脚本会继续。浏览器状态保存在 `.cache/csdn-browser/`，不会提交到 Git。
+
+默认行为：
+
+- 导入整个已识别的 CSDN 文章归档；
+- 自动把 CSDN 分类专栏映射为本站 **系列**；
+- 保留原始发布日期和 CSDN 原文链接；
+- 尽量把文章图片保存到 `public/images/csdn/`；
+- 单张图片超过 5 MiB 或下载失败时保留远程地址；
+- 成功率低于 80% 时拒绝写入，避免得到残缺归档。
+
+常用参数：
+
+```bash
+# 先试 3 篇
+npm run import:csdn -- --limit=3
+
+# 不下载图片
+npm run import:csdn -- --no-images
+
+# 导入后运行 Astro 检查
+npm run import:csdn -- --check
+
+# 导入后自动 git commit
+npm run import:csdn -- --check --commit
+
+# 导入、检查、提交并 push
+npm run import:csdn -- --check --push
+```
+
+CSDN 分类专栏会映射到 `/series/`，例如 MIT 6.S081 课程笔记会聚合到 `mit6-s081-2022` 系列，并在文章底部自动出现上一篇 / 下一篇导航。
 
 ### 添加资源
 
