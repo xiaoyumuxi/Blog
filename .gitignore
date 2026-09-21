@@ -9,4 +9,3 @@ test-results/
 playwright-report/
 # Generated public samples (created before dev/check/build)
 public/downloads/bluehour-sample.pdf
-public/downloads/bluehour-starter.zip
