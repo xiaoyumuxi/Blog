@@ -4,11 +4,11 @@ import Icon from '../components/Icon.astro';
 import PostCard from '../components/PostCard.astro';
 import ArticleFilters from '../components/ArticleFilters.astro';
 import ProjectCard from '../components/ProjectCard.astro';
-import { projects } from '../data/projects';
+import { getPinnedProjects } from '../lib/github-projects';
 import { posts, href, site } from '../lib/site';
 
 const all = await posts();
-const recent = all.slice(0, 6);
+const recent = all.slice(0, 6);\nconst projects = await getPinnedProjects();
 ---
 <Base>
   <section class="profile-hero" aria-labelledby="hero-title">
