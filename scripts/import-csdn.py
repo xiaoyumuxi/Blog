@@ -188,26 +188,28 @@ def discover_categories(profile_html: str, base_url: str) -> list[Category]:
 
 def extract_date(soup: BeautifulSoup, raw_html: str) -> datetime:
     candidates: list[str] = []
-    for key, value in (
-        ("property", "article:published_time"),
-        ("name", "date"),
-        ("itemprop", "datePublished"),
-    ):
-        node = soup.find("meta", attrs={key: value})
-        if node and node.get("content"):
-            candidates.append(node["content"])
-
     text = soup.get_text(" ", strip=True)
+
+    # Prefer CSDN's explicit "首次发布" timestamp over the modified timestamp.
     for pattern in (
         r"于\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*首次发布",
         r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*首次发布",
-        r'"datePublished"\s*:\s*"([^"]+)"',
         r'"dateCreated"\s*:\s*"([^"]+)"',
+        r'"datePublished"\s*:\s*"([^"]+)"',
     ):
         target = raw_html if '"date' in pattern else text
         match = re.search(pattern, target)
         if match:
             candidates.append(match.group(1))
+
+    for key, value in (
+        ("itemprop", "datePublished"),
+        ("property", "article:published_time"),
+        ("name", "date"),
+    ):
+        node = soup.find("meta", attrs={key: value})
+        if node and node.get("content"):
+            candidates.append(node["content"])
 
     for value in candidates:
         cleaned = value.strip().replace("T", " ").replace("Z", "")
