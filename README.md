@@ -15,7 +15,7 @@
 - KaTeX 行内 / 块级公式；Mermaid 代码围栏。
 - Callout、可键盘操作的 Tabs、图片图集与放大、原生 details 折叠。
 - 下载卡片、PDF 内嵌预览；附带真实可下载的 PDF 示例。
-- Pagefind 中文全文搜索、标签筛选、文章目录、阅读进度、RSS、Sitemap 与基础 SEO。
+- Pagefind 中文全文搜索、标签筛选、系列聚合与连续阅读、文章目录、阅读进度、RSS、Sitemap 与基础 SEO。
 
 **边界：** 文件下载不等于所有文件都能在线预览。Office 文件默认提供下载；浏览器对 PDF、音视频编码与第三方 iframe 的支持有差异。本项目是公开静态站点，不包含登录、私有文件权限或付费下载。只运行可信的 MDX 内容。
 
@@ -181,6 +181,14 @@ art: orbit # orbit / code / files
 ```
 
  或 `$...$`。可复用组件集中在 `src/components/`。
+
+### 从 CSDN 迁移文章
+
+仓库内置 `scripts/import-csdn.py` 和 **Import CSDN archive** 工作流。它会读取 `fancyfor` 的公开 CSDN 文章，把正文转成 Markdown，并保留原始发布日期、标签、原文链接和 CSDN 分类专栏。
+
+CSDN 分类专栏会映射为本站的 **系列**，访问 `/series/` 可以按课程或主题连续阅读。重新运行该工作流可以增量刷新已有的 CSDN 迁移文章。
+
+> 导入器只处理公开文章。图片会尽量复制到 `public/images/csdn/`；下载失败的图片会保留原始 CDN 地址。
 
 ### 添加资源
 
