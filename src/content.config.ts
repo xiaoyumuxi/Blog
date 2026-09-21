@@ -7,7 +7,16 @@ const blog = defineCollection({
     title: z.string(), description: z.string(), date: z.coerce.date(),
     tags: z.array(z.string()).default([]), draft: z.boolean().default(false),
     featured: z.boolean().default(false), sample: z.boolean().default(false),
-    art: z.enum(['orbit','code','files']).default('orbit')
+    art: z.enum(['orbit','code','files']).default('orbit'),
+    series: z.object({
+      name: z.string(),
+      slug: z.string(),
+      order: z.number().int().positive().optional()
+    }).optional(),
+    source: z.object({
+      platform: z.string(),
+      url: z.string().url()
+    }).optional()
   })
 });
 export const collections = { blog };
