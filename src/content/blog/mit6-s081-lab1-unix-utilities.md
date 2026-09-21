@@ -1,6 +1,6 @@
 ---
 title: "MIT6.s081——lab1 实现常见的用户程序"
-description: "文章浏览阅读900次，点赞28次，收藏23次。本文介绍了在xv6操作系统中实现几个经典UNIX用户程序的方法，包括sleep、pingpong、primes、find和xargs。这些程序分别展示了系统调用的使用、进程间通信、并发编程和文件系统操作等核心概念。sleep程序通过系统调用实现定时休眠；pingpong利用管道实现父子进程间的通信；pri…"
+description: "MIT 6.S081 Lab 1：在 xv6 中实现 sleep、管道与文件工具。"
 date: 2026-01-05
 tags: ["系统","Mit6.S081 2022版本","linux","运维","服务器"]
 draft: false

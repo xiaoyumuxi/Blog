@@ -1,6 +1,6 @@
 ---
 title: "MIT6.s081——lab3虚拟内存的结构和pgtl的实现"
-description: "文章浏览阅读568次，点赞17次，收藏13次。本文摘要探讨了在xv6操作系统中通过共享只读内存区域来加速getpid()系统调用的方法。关键思路是在用户空间和内核之间映射一个包含进程PID的只读页面USYSCALL，使用户程序可直接读取而无需陷入内核。实现需要修改三个核心函数：allocproc()分配并初始化页面，proc_pagetable()建…"
+description: "MIT 6.S081 Lab 3：USYSCALL、页表可视化与页面访问检测。"
 date: 2026-02-12
 tags: ["系统","Mit6.S081 2022版本","笔记"]
 draft: false

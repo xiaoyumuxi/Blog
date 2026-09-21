@@ -1,6 +1,6 @@
 ---
 title: "4.15腾讯 CSIG云服务产线 一面"
-description: "文章浏览阅读360次，点赞5次，收藏5次。这是一次不太愉快的Java开发岗位面试经历。面试内容主要围绕八股文展开，涉及Go语言基础、Spring AOP、JVM、并发编程、线程池、Redis、MySQL等技术点。面试官采用引导式提问，但候选人反映问题表述不够清晰，且面试压力较大。算法题要求合并有序数组并控制空间复杂度，因题目条件不完整导致发挥不佳。最…"
+description: "腾讯 CSIG 一面复盘：Go、Spring、JVM、并发、Redis 与 MySQL。"
 date: 2026-05-18
 tags: ["面试","面试记录和复盘","java","开发语言"]
 draft: false
