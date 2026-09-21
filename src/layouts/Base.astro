@@ -8,7 +8,7 @@ interface Props { title?: string; description?: string; article?: boolean; }
 const {title, description=site.description, article=false}=Astro.props;
 const pageTitle=title ? `${title} · ${site.title}` : site.title;
 const path=Astro.url.pathname;
-const nav=[['首页',''],['文章','blog/'],['资源','resources/'],['关于','about/']];
+const nav=[['首页',''],['文章','blog/'],['系列','series/'],['资源','resources/'],['关于','about/']];
 const canonical=new URL(Astro.url.pathname, Astro.site);
 ---
 <!doctype html>
