@@ -1,0 +1,35 @@
+---
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+import { href, formatDate } from '../../lib/site';
+import { seriesGroups } from '../../lib/series';
+
+const groups = await seriesGroups();
+---
+<Base title="系列">
+  <header class="page-heading series-heading">
+    <div class="eyebrow">SERIES & COLLECTIONS</div>
+    <h1>按系列，完整地读<span class="gradient-text">.</span></h1>
+    <p>把同一条学习路线、课程或主题放在一起。课程笔记、后端基础、AI、面试复盘都可以从这里连续阅读。</p>
+  </header>
+
+  <section class="page-content" aria-label="文章系列">
+    <div class="series-grid">
+      {groups.map(group => (
+        <a class="series-card" href={href(`series/${group.slug}/`)}>
+          <div class="series-card-top">
+            <span>{String(group.posts.length).padStart(2, '0')} 篇</span>
+            <Icon name="arrow" size={17}/>
+          </div>
+          <h2>{group.name}</h2>
+          <p>{group.description}</p>
+          <div class="series-card-foot">
+            <span>最近更新</span>
+            <time datetime={group.latest.toISOString()}>{formatDate(group.latest)}</time>
+          </div>
+        </a>
+      ))}
+    </div>
+    {groups.length === 0 && <p class="empty-state">系列正在整理中。</p>}
+  </section>
+</Base>
