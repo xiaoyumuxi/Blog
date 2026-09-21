@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
 permissions:
   contents: read
 concurrency:
@@ -30,6 +32,8 @@ jobs:
       - name: Type and content checks
         run: npm run check
       - name: Build static site and search index
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: npm run build
       - name: Install browser and CJK fonts
         run: |
