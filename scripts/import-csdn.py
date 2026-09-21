@@ -8,6 +8,7 @@ the public profile page, which exposes the full article URL list.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import re
 import time
@@ -19,6 +20,7 @@ from pathlib import Path
 from typing import Iterable
 
 from bs4 import BeautifulSoup
+from markdownify import markdownify as to_markdown
 
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -48,6 +50,19 @@ SERIES_TAGS = {
     "Mit6.S081 2022版本": "系统",
     "MIT6.S081 2022版本": "系统",
 }
+
+
+KNOWN_ARTICLE_IDS = [
+    "163421557", "163421176", "163421160", "163421128", "163420934",
+    "163398923", "163398520", "163398250", "163398088", "161797165",
+    "161779694", "161648730", "161648373", "161232752", "161232647",
+    "161232552", "161232443", "161196737", "161196445", "161172871",
+    "161172556", "160157511", "160157491", "160157465", "158462929",
+    "158462452", "158462270", "158040989", "158006798", "158006742",
+    "158006632", "156618273", "156240993", "156199320", "156198988",
+    "156198476", "155134179", "154289549", "152822984", "152818735",
+    "150586940",
+]
 
 
 @dataclass
@@ -130,19 +145,26 @@ def discover_articles(profile_html: str, base_url: str, user: str) -> list[str]:
         if pattern.search(url):
             urls.append(url.split("?")[0].split("#")[0])
 
-    return unique(urls)
+    discovered = unique(urls)
+    known_urls = [
+        f"https://blog.csdn.net/{user}/article/details/{article_id}"
+        for article_id in KNOWN_ARTICLE_IDS
+    ]
+    if len(discovered) < len(known_urls):
+        print(
+            f"Profile exposed only {len(discovered)} article links; "
+            f"using the known {len(known_urls)}-article archive snapshot."
+        )
+        return known_urls
+    return discovered
 
 
 def fetch_reader(url: str) -> str:
     reader_url = f"https://r.jina.ai/{url}"
     return fetch(
         reader_url,
-        retries=3,
-        headers={
-            "Accept": "text/plain",
-            "X-Engine": "browser",
-            "X-Cache-Tolerance": "3600",
-        },
+        retries=2,
+        headers={"Accept": "text/plain"},
     )
 
 
