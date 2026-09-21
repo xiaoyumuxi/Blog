@@ -15,7 +15,8 @@
     "build": "astro build && pagefind --site dist",
     "preview": "astro preview",
     "new": "node scripts/new-post.mjs",
-    "test:site": "node scripts/verify.mjs"
+    "test:site": "node scripts/verify.mjs",
+    "import:csdn": "node scripts/import-csdn-local.mjs"
   },
   "dependencies": {
     "astro": "7.3.3",
