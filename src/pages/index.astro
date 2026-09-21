@@ -8,7 +8,8 @@ import { getPinnedProjects } from '../lib/github-projects';
 import { posts, href, site } from '../lib/site';
 
 const all = await posts();
-const recent = all.slice(0, 6);\nconst projects = await getPinnedProjects();
+const recent = all.slice(0, 6);
+const projects = await getPinnedProjects();
 ---
 <Base>
   <section class="profile-hero" aria-labelledby="hero-title">
