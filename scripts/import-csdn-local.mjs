@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { chromium } from '@playwright/test';
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -60,6 +60,11 @@ function argValue(name, fallback) {
   return item ? item.slice(prefix.length) : fallback;
 }
 
+function numberArg(name, fallback = 0) {
+  const value = Number(argValue(name, String(fallback)));
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
@@ -111,6 +116,11 @@ async function promptForVerification(page) {
 }
 
 async function discoverArticleUrls(page) {
+  const fallback = KNOWN_ARTICLE_IDS.map(id => PROFILE + '/article/details/' + id);
+  if (hasArg('--known-only')) {
+    console.log('使用已核对的 CSDN 文章清单：' + fallback.length + ' 篇');
+    return fallback;
+  }
   console.log('打开 CSDN 主页：' + PROFILE);
   await page.goto(PROFILE, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(1800);
@@ -146,15 +156,18 @@ async function discoverArticleUrls(page) {
     if (stable >= 4) break;
   }
 
-  const fallback = KNOWN_ARTICLE_IDS.map(id => PROFILE + '/article/details/' + id);
   const merged = unique([...urls, ...fallback]);
   console.log('识别到文章：' + merged.length + ' 篇');
   return merged;
 }
 
 async function extractArticle(page, url, headed) {
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForTimeout(1200);
+  let response;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForTimeout(1000 + attempt * 1800);
+    if (response && response.status() !== 521) break;
+  }
 
   let hasBody = await page.locator('#content_views, .article_content, article').count();
   if (!hasBody && headed) {
@@ -321,7 +334,7 @@ async function extractArticle(page, url, headed) {
       '.blog-tags-box a,.tags-box a,.article-info-box a[href*="so.csdn.net"],a[href*="so.csdn.net"][class*="tag"]'
     ).forEach(node => {
       const value = node.textContent.trim().replace(/^#/, '');
-      if (value && value.length <= 40 && !tags.includes(value)) tags.push(value);
+      if (value && value.length <= 40 && !['查看详情', '订阅专栏'].includes(value) && !tags.includes(value)) tags.push(value);
     });
 
     let series = null;
@@ -469,7 +482,16 @@ async function writeArticle(article) {
     ''
   ].join('\n');
 
-  const file = join(CONTENT_DIR, 'csdn-' + article.id + '.md');
+  const files = await readdir(CONTENT_DIR);
+  let file = join(CONTENT_DIR, 'csdn-' + article.id + '.md');
+  for (const name of files.filter(item => /\.(md|mdx)$/.test(item))) {
+    const candidate = join(CONTENT_DIR, name);
+    const content = await readFile(candidate, 'utf8');
+    if (content.includes('article/details/' + article.id)) {
+      file = candidate;
+      break;
+    }
+  }
   await writeFile(file, frontmatter.join('\n') + article.markdown.trim() + sourceNote, 'utf8');
 }
 
@@ -493,7 +515,8 @@ async function main() {
   const doCommit = hasArg('--commit') || hasArg('--push');
   const doPush = hasArg('--push');
   const runCheck = hasArg('--check');
-  const limit = Number(argValue('--limit', '0')) || 0;
+  const offset = numberArg('--offset');
+  const limit = numberArg('--limit');
   const basePath = argValue('--base', process.env.BASE_PATH || '/Blog');
   const maxImageMb = Number(argValue('--max-image-mb', '80')) || 80;
   const budget = { used: 0, max: maxImageMb * 1024 * 1024 };
@@ -512,7 +535,7 @@ async function main() {
 
   const page = context.pages()[0] || await context.newPage();
   const urls = await discoverArticleUrls(page);
-  const selected = limit > 0 ? urls.slice(0, limit) : urls;
+  const selected = limit > 0 ? urls.slice(offset, offset + limit) : urls.slice(offset);
   const articles = [];
 
   for (let i = 0; i < selected.length; i += 1) {
@@ -551,7 +574,7 @@ async function main() {
       if (headless) continue;
     }
 
-    await sleep(650);
+    await sleep(1600);
   }
 
   const minimum = Math.max(1, Math.floor(selected.length * 0.8));
