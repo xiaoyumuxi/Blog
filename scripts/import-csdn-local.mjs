@@ -474,7 +474,9 @@ async function writeArticle(article) {
 }
 
 async function maybeGitCommit(push) {
-  execFileSync('git', ['add', 'src/content/blog', 'public/images/csdn'], { stdio: 'inherit' });
+  const addPaths = ['src/content/blog'];
+  if (existsSync(IMAGE_ROOT)) addPaths.push('public/images/csdn');
+  execFileSync('git', ['add', ...addPaths], { stdio: 'inherit' });
   const status = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim();
   if (!status) {
     console.log('没有新的迁移变更需要提交。');
