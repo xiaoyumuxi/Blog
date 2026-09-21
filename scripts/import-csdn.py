@@ -134,6 +134,48 @@ def discover_articles(profile_html: str, base_url: str) -> list[str]:
             urls.append(url.split("?")[0].split("#")[0])
     return unique(urls)
 
+def discover_articles_api(user: str) -> list[str]:
+    """Use CSDN's public list API because the profile HTML only contains page 1."""
+    endpoint = "https://blog.csdn.net/community/home-api/v1/get-business-list"
+    urls: list[str] = []
+    total = 0
+
+    for page in range(1, 20):
+        query = urllib.parse.urlencode({
+            "page": page,
+            "size": 100,
+            "businessType": "lately",
+            "noMore": "false",
+            "username": user,
+        })
+        raw = fetch(f"{endpoint}?{query}")
+        payload = json.loads(raw)
+        data = payload.get("data") or {}
+        items = data.get("list") or []
+        if total == 0:
+            try:
+                total = int(data.get("total") or 0)
+            except (TypeError, ValueError):
+                total = 0
+        if not items:
+            break
+
+        before = len(unique(urls))
+        for item in items:
+            url = item.get("url")
+            if url and article_id_from_url(url):
+                urls.append(url.split("?")[0].split("#")[0])
+        urls = unique(urls)
+
+        print(f"CSDN list API page {page}: {len(items)} items ({len(urls)}/{total or '?'})")
+        if total and len(urls) >= total:
+            break
+        if len(urls) == before:
+            break
+
+    return urls
+
+
 
 def category_name(soup: BeautifulSoup, category_id: str) -> str:
     for selector in (
@@ -298,6 +340,37 @@ def clean_body(body: BeautifulSoup, article_url: str) -> BeautifulSoup:
     return body
 
 
+def extract_series(raw_html: str, article_url: str) -> Category | None:
+    """Read the article's own '收录于' block, which appears before content_views.
+
+    Limiting the scan to the HTML before the article body avoids accidentally
+    picking a category from the author's sidebar list.
+    """
+    body_marker = raw_html.find('id="content_views"')
+    if body_marker < 0:
+        body_marker = raw_html.find("id='content_views'")
+    prefix = raw_html[:body_marker] if body_marker >= 0 else raw_html[:120000]
+    prefix_soup = BeautifulSoup(prefix, "html.parser")
+
+    for link in prefix_soup.find_all("a", href=True):
+        href = normalise_url(link["href"], article_url)
+        match = re.search(r"/fancyfor/category_(\d+)\.html", href)
+        if not match:
+            continue
+        name = link.get_text(" ", strip=True)
+        name = re.sub(r"\s*\d+\s*篇.*$", "", name).strip()
+        if not name or name in {"查看详情", "订阅专栏"}:
+            continue
+        category_id = match.group(1)
+        return Category(
+            name=name,
+            slug=SERIES_SLUGS.get(name, f"csdn-column-{category_id}"),
+            url=href.split("?")[0].split("#")[0],
+            article_ids=[],
+        )
+    return None
+
+
 def parse_article(url: str) -> Article:
     raw_html = fetch(url)
     soup = BeautifulSoup(raw_html, "html.parser")
@@ -317,6 +390,7 @@ def parse_article(url: str) -> Article:
         published=extract_date(soup, raw_html),
         tags=extract_tags(soup),
         body_html=str(body),
+        series=extract_series(raw_html, url),
     )
 
 
@@ -452,19 +526,24 @@ def main():
 
     profile_url = f"https://blog.csdn.net/{args.user}"
     profile_html = fetch(profile_url)
-    article_urls = discover_articles(profile_html, profile_url)
+
+    try:
+        article_urls = discover_articles_api(args.user)
+    except Exception as error:
+        print(f"CSDN list API failed; falling back to profile HTML: {error}")
+        article_urls = []
+
+    if not article_urls:
+        article_urls = discover_articles(profile_html, profile_url)
     if not article_urls:
         raise SystemExit("No CSDN articles discovered.")
-    print(f"Discovered {len(article_urls)} article URLs from {profile_url}")
-
-    categories = discover_categories(profile_html, profile_url)
+    print(f"Discovered {len(article_urls)} article URLs for {profile_url}")
 
     articles: list[Article] = []
     for index, url in enumerate(article_urls, start=1):
         print(f"[{index}/{len(article_urls)}] Fetching {url}")
         try:
             article = parse_article(url)
-            article.series = choose_series(article.article_id, categories)
             articles.append(article)
         except Exception as error:
             print(f"ERROR: {error}")
