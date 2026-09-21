@@ -61,13 +61,13 @@ try {
     assert((await response.body()).toString().startsWith(signature),`Invalid file: ${file}`);
   }
   results.push('PDF attachment signature is valid.');
-  for(const route of ['blog/','resources/','about/','404.html','rss.xml','sitemap-index.xml']){
+  for(const route of ['blog/','series/','resources/','about/','404.html','rss.xml','sitemap-index.xml']){
     const response=await page.request.get(url(route));
     assert(response.ok()||(route==='404.html'&&response.status()===404),`Route failed: ${route} (${response.status()})`);
   }
   results.push('Main routes, RSS and sitemap respond.');
   await page.setViewportSize({width:390,height:844});
-  for(const route of ['','blog/backend-interview-basics/','resources/']){
+  for(const route of ['','blog/backend-interview-basics/','series/','resources/']){
     await page.goto(url(route),{waitUntil:'networkidle'});
     const fits=await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1);
     if(!fits) {

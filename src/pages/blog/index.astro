@@ -2,7 +2,9 @@
 import Base from '../../layouts/Base.astro';
 import PostCard from '../../components/PostCard.astro';
 import ArticleFilters from '../../components/ArticleFilters.astro';
-import { posts } from '../../lib/site';
+import Icon from '../../components/Icon.astro';
+import { posts, href } from '../../lib/site';
+
 const all = await posts();
 ---
 <Base title="文章">
@@ -12,7 +14,10 @@ const all = await posts();
     <p>一些技术实践，一些学习笔记，还有一路上收集的灵感。<br/>从这里开始，遇见一个新的想法。</p>
   </header>
   <section class="page-content" aria-label="文章列表">
-    <ArticleFilters />
+    <div class="blog-list-tools">
+      <ArticleFilters />
+      <a class="series-entry-link" href={href('series/')}>按系列阅读 <Icon name="arrow" size={16}/></a>
+    </div>
     <div class="post-grid">{all.map(post => <PostCard post={post}/>)}</div>
     <p class="empty-state" data-empty hidden>这里还没有文章，试试其他栏目。</p>
   </section>

@@ -5,16 +5,96 @@ import Base from '../../layouts/Base.astro';
 import Art from '../../components/Art.astro';
 import GiscusComments from '../../components/GiscusComments.astro';
 import PageViews from '../../components/PageViews.astro';
-import {posts, href, site, formatDate, readTime} from '../../lib/site';
-export async function getStaticPaths(){return (await posts()).map(post=>({params:{id:post.id},props:{post}}));}
+import { posts, href, site, formatDate, readTime } from '../../lib/site';
+import { groupSeries } from '../../lib/series';
+
+export async function getStaticPaths(){
+  return (await posts()).map(post=>({params:{id:post.id},props:{post}}));
+}
+
 interface Props {post: CollectionEntry<'blog'>;}
 const {post}=Astro.props;
 const {Content,headings}=await render(post);
 const toc=headings.filter(h=>h.depth===2||h.depth===3);
+
+const allPosts = await posts();
+const seriesGroup = post.data.series
+  ? groupSeries(allPosts).find(group => group.slug === post.data.series?.slug)
+  : undefined;
+const seriesIndex = seriesGroup?.posts.findIndex(item => item.id === post.id) ?? -1;
+const previousInSeries = seriesGroup && seriesIndex > 0 ? seriesGroup.posts[seriesIndex - 1] : undefined;
+const nextInSeries = seriesGroup && seriesIndex >= 0 && seriesIndex < seriesGroup.posts.length - 1
+  ? seriesGroup.posts[seriesIndex + 1]
+  : undefined;
 ---
 <Base title={post.data.title} description={post.data.description} article>
   <div class="reading-progress" aria-hidden="true"></div>
-  <header class="article-header"><div class="breadcrumb"><a href={href()}>首页</a><span>/</span><a href={href('blog/')}>文章</a><span>/</span><span>{post.data.tags[0]||'随笔'}</span></div><div class="tag-list">{post.data.tags.map(tag=><a class="tag" href={href(`blog/?tag=${encodeURIComponent(tag)}`)}>{tag}</a>)}</div><h1 data-pagefind-meta="title">{post.data.title}</h1><p>{post.data.description}</p><div class="article-meta"><span class="author-mini"><span class="brand-mark">X</span>{site.name}</span><span>·</span><time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time><span>·</span><span>{readTime(post.body)} 分钟阅读</span><span>·</span><PageViews/>{post.data.sample&&<span class="sample-label">站点示例 · 可替换</span>}</div></header>
+  <header class="article-header">
+    <div class="breadcrumb">
+      <a href={href()}>首页</a><span>/</span>
+      <a href={href('blog/')}>文章</a>
+      {post.data.series && <><span>/</span><a href={href(`series/${post.data.series.slug}/`)}>{post.data.series.name}</a></>}
+      <span>/</span><span>{post.data.tags[0]||'随笔'}</span>
+    </div>
+    <div class="tag-list">
+      {post.data.series && <a class="tag series-tag" href={href(`series/${post.data.series.slug}/`)}>系列 · {post.data.series.name}</a>}
+      {post.data.tags.map(tag=><a class="tag" href={href(`blog/?tag=${encodeURIComponent(tag)}`)}>{tag}</a>)}
+    </div>
+    <h1 data-pagefind-meta="title">{post.data.title}</h1>
+    <p>{post.data.description}</p>
+    <div class="article-meta">
+      <span class="author-mini"><span class="brand-mark">X</span>{site.name}</span><span>·</span>
+      <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time><span>·</span>
+      <span>{readTime(post.body)} 分钟阅读</span><span>·</span><PageViews/>
+      {post.data.source?.url && <><span>·</span><a class="article-source" href={post.data.source.url} target="_blank" rel="noopener noreferrer">原文 · {post.data.source.platform}</a></>}
+      {post.data.sample&&<span class="sample-label">站点示例 · 可替换</span>}
+    </div>
+  </header>
+
   <div class="article-cover"><Art variant={post.data.art}/></div>
-  <div class="article-layout"><article class="prose" data-pagefind-body data-article><Content/><div class="article-end" data-pagefind-ignore><span>感谢阅读，愿这里有一个对你有用的想法。</span><a href={href('blog/')}>← 返回文章列表</a></div><GiscusComments postId={post.id}/></article><aside class="toc" aria-label="文章目录"><strong>ON THIS PAGE</strong>{toc.map(h=><a class={`depth-${h.depth}`} href={`#${h.slug}`}>{h.text}</a>)}<div class="toc-footer"><a href={href('resources/')}>下载资源 ↗</a><a href={href('rss.xml')}>订阅 RSS ↗</a></div></aside></div>
+
+  <div class="article-layout">
+    <article class="prose" data-pagefind-body data-article>
+      <Content/>
+
+      {seriesGroup && (
+        <nav class="series-article-nav" aria-label={`${seriesGroup.name}系列导航`} data-pagefind-ignore>
+          <div class="series-article-head">
+            <div>
+              <span>SERIES</span>
+              <strong>{seriesGroup.name}</strong>
+            </div>
+            <a href={href(`series/${seriesGroup.slug}/`)}>
+              {seriesIndex + 1} / {seriesGroup.posts.length} · 查看完整系列
+            </a>
+          </div>
+          <div class="series-article-links">
+            {previousInSeries
+              ? <a href={href(`blog/${previousInSeries.id}/`)}><small>上一篇</small><span>← {previousInSeries.data.title}</span></a>
+              : <span class="series-nav-empty"></span>}
+            {nextInSeries
+              ? <a class="next" href={href(`blog/${nextInSeries.id}/`)}><small>下一篇</small><span>{nextInSeries.data.title} →</span></a>
+              : <span class="series-nav-empty"></span>}
+          </div>
+        </nav>
+      )}
+
+      <div class="article-end" data-pagefind-ignore>
+        <span>感谢阅读，愿这里有一个对你有用的想法。</span>
+        <a href={post.data.series ? href(`series/${post.data.series.slug}/`) : href('blog/')}>
+          ← {post.data.series ? '返回系列' : '返回文章列表'}
+        </a>
+      </div>
+      <GiscusComments postId={post.id}/>
+    </article>
+
+    <aside class="toc" aria-label="文章目录">
+      <strong>ON THIS PAGE</strong>
+      {toc.map(h=><a class={`depth-${h.depth}`} href={`#${h.slug}`}>{h.text}</a>)}
+      <div class="toc-footer">
+        {post.data.series && <a href={href(`series/${post.data.series.slug}/`)}>完整系列 ↗</a>}
+        <a href={href('rss.xml')}>订阅 RSS ↗</a>
+      </div>
+    </aside>
+  </div>
 </Base>
