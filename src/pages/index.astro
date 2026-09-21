@@ -10,6 +10,7 @@ import { posts, href, site } from '../lib/site';
 const all = await posts();
 const recent = all.slice(0, 6);
 const projects = await getPinnedProjects();
+const projectColumns = Math.max(1, Math.min(projects.length, 4));
 ---
 <Base>
   <section class="profile-hero" aria-labelledby="hero-title">
@@ -63,7 +64,7 @@ const projects = await getPinnedProjects();
         全部仓库 <Icon name="arrow" size={17}/>
       </a>
     </div>
-    <div class="project-grid">
+    <div class="project-grid" style={`--project-columns:${projectColumns}`}>
       {projects.map((project, index) => <ProjectCard project={project} index={index}/>)}
     </div>
   </section>
@@ -88,9 +89,6 @@ const projects = await getPinnedProjects();
         <a class="section-link" href={href('resources/')}>资源架 <Icon name="arrow" size={16}/></a>
       </div>
       <div class="teaser-files">
-        <a href={href('downloads/writing-template.md')} download>
-          <Icon name="file" size={23}/><span>写作起点<small>MARKDOWN · 模板下载</small></span>
-        </a>
         <a href={href('downloads/bluehour-sample.pdf')} download>
           <Icon name="download" size={23}/><span>随手带走<small>PDF · 示例文档</small></span>
         </a>
