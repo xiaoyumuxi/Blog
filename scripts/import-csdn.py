@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """Import the public CSDN archive for fancyfor into Astro Markdown posts.
 
-The importer is intentionally idempotent: files are keyed by the stable CSDN
-article id and can be refreshed by running the workflow again.
+CSDN rejects GitHub-hosted runner IPs with HTTP 521 on article pages, so article
+content is fetched through the public Jina Reader endpoint. Discovery still uses
+the public profile page, which exposes the full article URL list.
 """
 from __future__ import annotations
 
 import argparse
-import hashlib
-import html
 import json
-import mimetypes
 import re
 import time
 import urllib.parse
@@ -21,7 +19,6 @@ from pathlib import Path
 from typing import Iterable
 
 from bs4 import BeautifulSoup
-from markdownify import markdownify as to_markdown
 
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -52,18 +49,12 @@ SERIES_TAGS = {
     "MIT6.S081 2022版本": "系统",
 }
 
-BLOCKED_HOSTS = {
-    "passport.csdn.net",
-    "so.csdn.net",
-}
-
 
 @dataclass
 class Category:
     name: str
     slug: str
     url: str
-    article_ids: list[str]
 
 
 @dataclass
@@ -74,33 +65,37 @@ class Article:
     description: str
     published: datetime
     tags: list[str]
-    body_html: str
+    body: str
     series: Category | None = None
     series_order: int | None = None
 
 
-def fetch(url: str, *, binary: bool = False, referer: str | None = None, retries: int = 4):
-    headers = {
+def fetch(
+    url: str,
+    *,
+    retries: int = 3,
+    headers: dict[str, str] | None = None,
+) -> str:
+    request_headers = {
         "User-Agent": USER_AGENT,
         "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.7",
-        "Accept": "*/*" if binary else "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     }
-    if referer:
-        headers["Referer"] = referer
-    request = urllib.request.Request(url, headers=headers)
+    if headers:
+        request_headers.update(headers)
+
     last_error = None
     for attempt in range(retries):
+        request = urllib.request.Request(url, headers=request_headers)
         try:
-            with urllib.request.urlopen(request, timeout=35) as response:
+            with urllib.request.urlopen(request, timeout=45) as response:
                 data = response.read()
-                if binary:
-                    return data, response.headers
                 charset = response.headers.get_content_charset() or "utf-8"
                 return data.decode(charset, errors="replace")
         except Exception as error:
             last_error = error
             if attempt + 1 < retries:
-                time.sleep(1.5 * (attempt + 1))
+                time.sleep(2.0 * (attempt + 1))
     raise RuntimeError(f"Failed to fetch {url}: {last_error}")
 
 
@@ -125,352 +120,192 @@ def normalise_url(url: str, base: str) -> str:
     return urllib.parse.urljoin(base, url)
 
 
-def discover_articles(profile_html: str, base_url: str) -> list[str]:
+def discover_articles(profile_html: str, base_url: str, user: str) -> list[str]:
     soup = BeautifulSoup(profile_html, "html.parser")
-    urls = []
+    urls: list[str] = []
+    pattern = re.compile(rf"/{re.escape(user)}/article/details/\d+")
+
     for link in soup.find_all("a", href=True):
         url = normalise_url(link["href"], base_url)
-        if re.search(r"/fancyfor/article/details/\d+", url):
+        if pattern.search(url):
             urls.append(url.split("?")[0].split("#")[0])
+
     return unique(urls)
 
-def discover_articles_api(user: str) -> list[str]:
-    """Use CSDN's public list API because the profile HTML only contains page 1."""
-    endpoint = "https://blog.csdn.net/community/home-api/v1/get-business-list"
-    urls: list[str] = []
-    total = 0
 
-    for page in range(1, 20):
-        query = urllib.parse.urlencode({
-            "page": page,
-            "size": 100,
-            "businessType": "lately",
-            "noMore": "false",
-            "username": user,
-        })
-        raw = fetch(f"{endpoint}?{query}")
-        payload = json.loads(raw)
-        data = payload.get("data") or {}
-        items = data.get("list") or []
-        if total == 0:
-            try:
-                total = int(data.get("total") or 0)
-            except (TypeError, ValueError):
-                total = 0
-        if not items:
-            break
-
-        before = len(unique(urls))
-        for item in items:
-            url = item.get("url")
-            if url and article_id_from_url(url):
-                urls.append(url.split("?")[0].split("#")[0])
-        urls = unique(urls)
-
-        print(f"CSDN list API page {page}: {len(items)} items ({len(urls)}/{total or '?'})")
-        if total and len(urls) >= total:
-            break
-        if len(urls) == before:
-            break
-
-    return urls
+def fetch_reader(url: str) -> str:
+    reader_url = f"https://r.jina.ai/{url}"
+    return fetch(
+        reader_url,
+        retries=3,
+        headers={
+            "Accept": "text/plain",
+            "X-Engine": "browser",
+            "X-Cache-Tolerance": "3600",
+        },
+    )
 
 
-
-def category_name(soup: BeautifulSoup, category_id: str) -> str:
-    for selector in (
-        ".column_title",
-        ".column-title",
-        ".column_info h3",
-        ".column-info h3",
-        "h3",
-    ):
-        node = soup.select_one(selector)
-        if node:
-            text = node.get_text(" ", strip=True)
-            if text and "热门文章" not in text and "分类专栏" not in text:
-                return text
-    title = soup.title.get_text(" ", strip=True) if soup.title else ""
-    for suffix in ("_晨曦中的暮雨的博客-CSDN博客", "_晨曦中的暮雨的博客", "-CSDN博客"):
-        title = title.replace(suffix, "")
-    return title.strip(" _-") or f"CSDN 专栏 {category_id}"
+def reader_content(raw: str) -> str:
+    marker = "Markdown Content:"
+    if marker in raw:
+        return raw.split(marker, 1)[1].strip()
+    return raw.strip()
 
 
-def discover_categories(profile_html: str, base_url: str) -> list[Category]:
-    soup = BeautifulSoup(profile_html, "html.parser")
-    category_urls: list[str] = []
-    for link in soup.find_all("a", href=True):
-        url = normalise_url(link["href"], base_url)
-        if re.search(r"/fancyfor/category_\d+\.html", url):
-            category_urls.append(url.split("?")[0].split("#")[0])
+def reader_title(raw: str, content: str) -> str:
+    match = re.search(r"^Title:\s*(.+)$", raw, flags=re.MULTILINE)
+    if match:
+        title = match.group(1).strip()
+        title = re.sub(r"\s*[-_]\s*CSDN博客\s*$", "", title).strip()
+        if title:
+            return title
 
-    categories: list[Category] = []
-    for url in unique(category_urls):
-        category_id = re.search(r"category_(\d+)", url).group(1)
-        page = fetch(url)
-        category_soup = BeautifulSoup(page, "html.parser")
-        name = category_name(category_soup, category_id)
-        ids = []
-        for link in category_soup.find_all("a", href=True):
-            article_url = normalise_url(link["href"], url)
-            article_id = article_id_from_url(article_url)
-            if article_id:
-                ids.append(article_id)
-        categories.append(
-            Category(
-                name=name,
-                slug=SERIES_SLUGS.get(name, f"csdn-column-{category_id}"),
-                url=url,
-                article_ids=unique(ids),
-            )
-        )
-        print(f"Discovered series: {name} ({len(unique(ids))} articles)")
-    return categories
-
-
-def extract_date(soup: BeautifulSoup, raw_html: str) -> datetime:
-    candidates: list[str] = []
-    text = soup.get_text(" ", strip=True)
-
-    # Prefer CSDN's explicit "首次发布" timestamp over the modified timestamp.
-    for pattern in (
-        r"于\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*首次发布",
-        r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*首次发布",
-        r'"dateCreated"\s*:\s*"([^"]+)"',
-        r'"datePublished"\s*:\s*"([^"]+)"',
-    ):
-        target = raw_html if '"date' in pattern else text
-        match = re.search(pattern, target)
-        if match:
-            candidates.append(match.group(1))
-
-    for key, value in (
-        ("itemprop", "datePublished"),
-        ("property", "article:published_time"),
-        ("name", "date"),
-    ):
-        node = soup.find("meta", attrs={key: value})
-        if node and node.get("content"):
-            candidates.append(node["content"])
-
-    for value in candidates:
-        cleaned = value.strip().replace("T", " ").replace("Z", "")
-        cleaned = re.sub(r"([+-]\d{2}):?(\d{2})$", "", cleaned).strip()
-        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
-            try:
-                return datetime.strptime(cleaned[:19], fmt)
-            except ValueError:
-                pass
-    return datetime.now()
-
-
-def extract_title(soup: BeautifulSoup) -> str:
-    for selector in ("h1.title-article", "h1"):
-        node = soup.select_one(selector)
-        if node:
-            title = node.get_text(" ", strip=True)
-            if title:
-                return title
-    meta = soup.find("meta", attrs={"property": "og:title"})
-    if meta and meta.get("content"):
-        return meta["content"].replace("-CSDN博客", "").strip()
+    heading = re.search(r"^#\s+(.+)$", content, flags=re.MULTILINE)
+    if heading:
+        return heading.group(1).strip()
     return "未命名文章"
 
 
-def extract_description(soup: BeautifulSoup, body: BeautifulSoup, title: str) -> str:
-    node = soup.find("meta", attrs={"name": "description"})
-    value = html.unescape(node.get("content", "")).strip() if node else ""
-    for prefix in (title, f"{title}-CSDN博客"):
-        if value.startswith(prefix):
-            value = value[len(prefix):].lstrip(" _-|：:")
-    value = re.sub(r"\s+", " ", value)
-    if not value:
-        paragraph = body.find("p")
-        value = paragraph.get_text(" ", strip=True) if paragraph else ""
-    return (value[:176].rstrip() + "…") if len(value) > 180 else value
+def reader_date(raw: str, content: str) -> datetime:
+    for text in (content, raw):
+        match = re.search(
+            r"于\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*首次发布",
+            text,
+        )
+        if match:
+            return datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S")
+
+    match = re.search(r"^Published Time:\s*(.+)$", raw, flags=re.MULTILINE)
+    if match:
+        value = match.group(1).strip().replace("T", " ").replace("Z", "")
+        value = re.sub(r"([+-]\d{2}):?(\d{2})$", "", value).strip()
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(value[:19], fmt)
+            except ValueError:
+                pass
+
+    raise RuntimeError("Could not determine original publish date")
 
 
-def extract_tags(soup: BeautifulSoup) -> list[str]:
-    values = []
-    for selector in (
-        ".blog-tags-box a",
-        ".tags-box a",
-        ".article-info-box a[href*='so.csdn.net']",
-        "a[href*='so.csdn.net'][class*='tag']",
-    ):
-        for node in soup.select(selector):
-            tag = node.get_text(" ", strip=True).lstrip("#").strip()
-            if tag and len(tag) <= 40:
-                values.append(tag)
-    return unique(values)[:8]
+def reader_series(content: str, article_url: str) -> Category | None:
+    marker = content.find("收录于")
+    prefix = content[marker:marker + 2500] if marker >= 0 else content[:2500]
 
-
-def clean_body(body: BeautifulSoup, article_url: str) -> BeautifulSoup:
-    for selector in (
-        "script",
-        "style",
-        "iframe",
-        "noscript",
-        ".hide-preCode-box",
-        ".hljs-button",
-        ".look-more-preCode",
-        ".recommend-box",
-        ".article-copyright",
-        ".passport-login-container",
-    ):
-        for node in body.select(selector):
-            node.decompose()
-
-    for anchor in body.find_all("a", href=True):
-        href = anchor["href"].strip()
-        if href.startswith(("javascript:", "#")):
-            anchor.attrs.pop("href", None)
-            continue
-        absolute = normalise_url(href, article_url)
-        host = urllib.parse.urlparse(absolute).hostname or ""
-        if host not in BLOCKED_HOSTS:
-            anchor["href"] = absolute
-
-    for image in body.find_all("img"):
-        src = image.get("data-src") or image.get("data-original") or image.get("src")
-        if src:
-            image["src"] = normalise_url(src, article_url)
-        for attr in ("data-src", "data-original", "style", "onclick"):
-            image.attrs.pop(attr, None)
-    return body
-
-
-def extract_series(raw_html: str, article_url: str) -> Category | None:
-    """Read the article's own '收录于' block, which appears before content_views.
-
-    Limiting the scan to the HTML before the article body avoids accidentally
-    picking a category from the author's sidebar list.
-    """
-    body_marker = raw_html.find('id="content_views"')
-    if body_marker < 0:
-        body_marker = raw_html.find("id='content_views'")
-    prefix = raw_html[:body_marker] if body_marker >= 0 else raw_html[:120000]
-    prefix_soup = BeautifulSoup(prefix, "html.parser")
-
-    for link in prefix_soup.find_all("a", href=True):
-        href = normalise_url(link["href"], article_url)
-        match = re.search(r"/fancyfor/category_(\d+)\.html", href)
-        if not match:
-            continue
-        name = link.get_text(" ", strip=True)
+    link_pattern = re.compile(
+        r"\[([^\]]+)\]\((https?://blog\.csdn\.net/fancyfor/category_(\d+)\.html[^)]*)\)",
+        flags=re.IGNORECASE,
+    )
+    for match in link_pattern.finditer(prefix):
+        name = re.sub(r"\s+", " ", match.group(1)).strip()
         name = re.sub(r"\s*\d+\s*篇.*$", "", name).strip()
         if not name or name in {"查看详情", "订阅专栏"}:
             continue
-        category_id = match.group(1)
+        category_id = match.group(3)
         return Category(
             name=name,
             slug=SERIES_SLUGS.get(name, f"csdn-column-{category_id}"),
-            url=href.split("?")[0].split("#")[0],
-            article_ids=[],
+            url=match.group(2).split("?")[0].split("#")[0],
         )
+
+    for name in sorted(SERIES_SLUGS, key=len, reverse=True):
+        if name in prefix:
+            return Category(
+                name=name,
+                slug=SERIES_SLUGS[name],
+                url=article_url,
+            )
     return None
 
 
+def split_reader_body(content: str) -> tuple[str, str]:
+    publish = re.search(
+        r"于\s*\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s*首次发布\s*",
+        content,
+    )
+    if not publish:
+        raise RuntimeError("Could not find CSDN first-published marker")
+
+    remainder = content[publish.end():].lstrip()
+
+    tag_match = re.search(r"\n\s*标签\s*\n", remainder)
+    if tag_match:
+        body = remainder[:tag_match.start()].rstrip()
+        tags_section = remainder[tag_match.end():]
+    else:
+        footer = re.search(
+            r"\n(?:确定要放弃本次机会？|作者简介|热门文章|相关推荐)\s*\n",
+            remainder,
+        )
+        body = remainder[:footer.start()].rstrip() if footer else remainder.rstrip()
+        tags_section = ""
+
+    if len(body) < 80:
+        raise RuntimeError("Reader returned too little article content")
+    return body, tags_section
+
+
+def reader_tags(tags_section: str) -> list[str]:
+    tags = re.findall(r"\[#([^\]]+)\]\([^)]+\)", tags_section)
+    if not tags:
+        tags = re.findall(r"(?<!\w)#([\w\u4e00-\u9fff.+#-]{1,40})", tags_section)
+    return unique(tag.strip() for tag in tags if tag.strip())[:8]
+
+
+def reader_description(body: str, title: str) -> str:
+    for block in re.split(r"\n\s*\n", body):
+        value = block.strip()
+        if not value:
+            continue
+        if value.startswith(("#", "![", "|", ">")):
+            continue
+
+        value = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", value)
+        value = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", value)
+        value = re.sub(r"[*_~]", "", value)
+        value = re.sub(r"\s+", " ", value).strip()
+
+        if value and value != title and len(value) >= 8:
+            return (value[:176].rstrip() + "…") if len(value) > 180 else value
+
+    return title
+
+
 def parse_article(url: str) -> Article:
-    raw_html = fetch(url)
-    soup = BeautifulSoup(raw_html, "html.parser")
-    body = soup.find(id="content_views") or soup.select_one(".article_content") or soup.select_one("article")
-    if body is None:
-        raise RuntimeError(f"Could not find article body in {url}")
-    body = clean_body(body, url)
+    raw = fetch_reader(url)
+    content = reader_content(raw)
+    body, tags_section = split_reader_body(content)
+
     article_id = article_id_from_url(url)
     if not article_id:
         raise RuntimeError(f"Could not determine article id for {url}")
-    title = extract_title(soup)
+
+    title = reader_title(raw, content)
     return Article(
         article_id=article_id,
         url=url,
         title=title,
-        description=extract_description(soup, body, title),
-        published=extract_date(soup, raw_html),
-        tags=extract_tags(soup),
-        body_html=str(body),
-        series=extract_series(raw_html, url),
+        description=reader_description(body, title),
+        published=reader_date(raw, content),
+        tags=reader_tags(tags_section),
+        body=body,
+        series=reader_series(content, url),
     )
-
-
-def choose_series(article_id: str, categories: list[Category]) -> Category | None:
-    memberships = [category for category in categories if article_id in category.article_ids]
-    if not memberships:
-        return None
-    # Prefer the most specific/smaller series if CSDN happens to place one post in
-    # multiple columns.
-    return sorted(memberships, key=lambda category: len(category.article_ids))[0]
-
-
-def safe_extension(url: str, content_type: str | None) -> str:
-    path_ext = Path(urllib.parse.urlparse(url).path).suffix.lower()
-    if re.fullmatch(r"\.(png|jpe?g|gif|webp|svg)", path_ext):
-        return ".jpg" if path_ext == ".jpeg" else path_ext
-    guessed = mimetypes.guess_extension((content_type or "").split(";")[0].strip()) or ".jpg"
-    return ".jpg" if guessed == ".jpe" else guessed
-
-
-def migrate_images(
-    markdown: str,
-    article: Article,
-    image_root: Path,
-    *,
-    max_total_bytes: int,
-    total_state: list[int],
-) -> str:
-    image_pattern = re.compile(r"!\[([^\]]*)\]\((https?://[^)\s]+)(?:\s+\"[^\"]*\")?\)")
-    urls = unique(match.group(2) for match in image_pattern.finditer(markdown))
-    if not urls:
-        return markdown
-
-    target_dir = image_root / article.article_id
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    replacements: dict[str, str] = {}
-    for index, url in enumerate(urls, start=1):
-        if total_state[0] >= max_total_bytes:
-            print("Image migration size cap reached; remaining images stay remote.")
-            break
-        try:
-            data, headers = fetch(url, binary=True, referer=article.url, retries=2)
-            if len(data) > 5 * 1024 * 1024:
-                print(f"Skip oversized image ({len(data)} bytes): {url}")
-                continue
-            if total_state[0] + len(data) > max_total_bytes:
-                continue
-            extension = safe_extension(url, headers.get("Content-Type"))
-            digest = hashlib.sha1(url.encode("utf-8")).hexdigest()[:8]
-            filename = f"{index:02d}-{digest}{extension}"
-            (target_dir / filename).write_bytes(data)
-            total_state[0] += len(data)
-            replacements[url] = f"../../images/csdn/{article.article_id}/{filename}"
-        except Exception as error:
-            print(f"Keep remote image after download failure: {url} ({error})")
-
-    for original, local in replacements.items():
-        markdown = markdown.replace(f"]({original})", f"]({local})")
-    return markdown
-
-
-def markdown_body(article: Article) -> str:
-    markdown = to_markdown(
-        article.body_html,
-        heading_style="ATX",
-        bullets="-",
-        strip=["script", "style"],
-    )
-    markdown = markdown.replace("\r\n", "\n")
-    markdown = re.sub(r"\n{4,}", "\n\n\n", markdown)
-    markdown = re.sub(r"[ \t]+\n", "\n", markdown)
-    return markdown.strip()
 
 
 def json_flow(value) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
-def write_article(article: Article, output_dir: Path, image_root: Path, download_images: bool, total_state: list[int], max_total_bytes: int):
+def clean_markdown(markdown: str) -> str:
+    markdown = markdown.replace("\r\n", "\n")
+    markdown = re.sub(r"\n{4,}", "\n\n\n", markdown)
+    markdown = re.sub(r"[ \t]+\n", "\n", markdown)
+    return markdown.strip()
+
+
+def write_article(article: Article, output_dir: Path) -> None:
     tags = list(article.tags)
     if article.series:
         broad_tag = SERIES_TAGS.get(article.series.name)
@@ -478,21 +313,15 @@ def write_article(article: Article, output_dir: Path, image_root: Path, download
             tags.insert(0, broad_tag)
     tags = unique(tags)[:8]
 
-    body = markdown_body(article)
-    if download_images:
-        body = migrate_images(
-            body,
-            article,
-            image_root,
-            max_total_bytes=max_total_bytes,
-            total_state=total_state,
-        )
-
     series_line = ""
     if article.series:
-        series_line = (
-            f"series: {json_flow({'name': article.series.name, 'slug': article.series.slug, 'order': article.series_order})}\n"
-        )
+        series_data = {
+            "name": article.series.name,
+            "slug": article.series.slug,
+        }
+        if article.series_order is not None:
+            series_data["order"] = article.series_order
+        series_line = f"series: {json_flow(series_data)}\n"
 
     frontmatter = (
         "---\n"
@@ -508,81 +337,81 @@ def write_article(article: Article, output_dir: Path, image_root: Path, download
         f"source: {json_flow({'platform': 'CSDN', 'url': article.url})}\n"
         "---\n\n"
     )
-    source_note = f"\n\n---\n\n> 本文由我的 CSDN 博客迁移而来：[查看原文]({article.url})。\n"
+
+    source_note = (
+        f"\n\n---\n\n"
+        f"> 本文由我的 CSDN 博客迁移而来：[查看原文]({article.url})。\n"
+    )
     marker = f"\n<!-- imported-from-csdn:{article.article_id} -->\n"
+
     path = output_dir / f"csdn-{article.article_id}.md"
-    path.write_text(frontmatter + body + source_note + marker, encoding="utf-8")
+    path.write_text(
+        frontmatter + clean_markdown(article.body) + source_note + marker,
+        encoding="utf-8",
+    )
     print(f"Wrote {path}: {article.title}")
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--user", default="fancyfor")
-    parser.add_argument("--output", default="src/content/blog")
-    parser.add_argument("--image-root", default="public/images/csdn")
-    parser.add_argument("--download-images", action="store_true")
-    parser.add_argument("--max-image-mb", type=int, default=60)
-    args = parser.parse_args()
-
-    profile_url = f"https://blog.csdn.net/{args.user}"
-    profile_html = fetch(profile_url)
-
-    try:
-        article_urls = discover_articles_api(args.user)
-    except Exception as error:
-        print(f"CSDN list API failed; falling back to profile HTML: {error}")
-        article_urls = []
-
-    if not article_urls:
-        article_urls = discover_articles(profile_html, profile_url)
-    if not article_urls:
-        raise SystemExit("No CSDN articles discovered.")
-    print(f"Discovered {len(article_urls)} article URLs for {profile_url}")
-
-    articles: list[Article] = []
-    for index, url in enumerate(article_urls, start=1):
-        print(f"[{index}/{len(article_urls)}] Fetching {url}")
-        try:
-            article = parse_article(url)
-            articles.append(article)
-        except Exception as error:
-            print(f"ERROR: {error}")
-
-    if len(articles) < max(1, int(len(article_urls) * 0.8)):
-        raise SystemExit(
-            f"Only parsed {len(articles)} of {len(article_urls)} articles; refusing a partial migration."
-        )
-
-    for category in categories:
+def assign_series_order(articles: list[Article]) -> None:
+    slugs = sorted({article.series.slug for article in articles if article.series})
+    for slug in slugs:
         members = sorted(
-            [article for article in articles if article.series and article.series.slug == category.slug],
+            [
+                article
+                for article in articles
+                if article.series and article.series.slug == slug
+            ],
             key=lambda article: (article.published, article.article_id),
         )
         for order, article in enumerate(members, start=1):
             article.series_order = order
 
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    image_root = Path(args.image_root)
-    total_state = [0]
-    max_total_bytes = args.max_image_mb * 1024 * 1024
 
-    for article in sorted(articles, key=lambda item: item.published):
-        write_article(
-            article,
-            output_dir,
-            image_root,
-            args.download_images,
-            total_state,
-            max_total_bytes,
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--user", default="fancyfor")
+    parser.add_argument("--output", default="src/content/blog")
+    args = parser.parse_args()
+
+    profile_url = f"https://blog.csdn.net/{args.user}"
+    profile_html = fetch(profile_url, retries=3)
+    article_urls = discover_articles(profile_html, profile_url, args.user)
+
+    if not article_urls:
+        raise SystemExit("No CSDN articles discovered.")
+
+    print(f"Discovered {len(article_urls)} article URLs for {profile_url}")
+
+    articles: list[Article] = []
+    for index, url in enumerate(article_urls, start=1):
+        print(f"[{index}/{len(article_urls)}] Fetching through Reader: {url}")
+        started = time.monotonic()
+        try:
+            articles.append(parse_article(url))
+        except Exception as error:
+            print(f"ERROR: {url}: {error}")
+
+        elapsed = time.monotonic() - started
+        if elapsed < 3.2:
+            time.sleep(3.2 - elapsed)
+
+    minimum = max(1, int(len(article_urls) * 0.8))
+    if len(articles) < minimum:
+        raise SystemExit(
+            f"Only parsed {len(articles)} of {len(article_urls)} articles; "
+            "refusing a partial migration."
         )
 
-    print(
-        f"Imported {len(articles)} articles across "
-        f"{len({a.series.slug for a in articles if a.series})} series."
-    )
-    if args.download_images:
-        print(f"Downloaded {total_state[0] / 1024 / 1024:.1f} MiB of images.")
+    assign_series_order(articles)
+
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for article in sorted(articles, key=lambda item: item.published):
+        write_article(article, output_dir)
+
+    series_count = len({a.series.slug for a in articles if a.series})
+    print(f"Imported {len(articles)} articles across {series_count} series.")
 
 
 if __name__ == "__main__":
