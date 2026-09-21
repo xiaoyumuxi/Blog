@@ -8,6 +8,7 @@ the public profile page, which exposes the full article URL list.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import re
 import time
@@ -19,6 +20,7 @@ from pathlib import Path
 from typing import Iterable
 
 from bs4 import BeautifulSoup
+from markdownify import markdownify as to_markdown
 
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -48,6 +50,19 @@ SERIES_TAGS = {
     "Mit6.S081 2022版本": "系统",
     "MIT6.S081 2022版本": "系统",
 }
+
+
+KNOWN_ARTICLE_IDS = [
+    "163421557", "163421176", "163421160", "163421128", "163420934",
+    "163398923", "163398520", "163398250", "163398088", "161797165",
+    "161779694", "161648730", "161648373", "161232752", "161232647",
+    "161232552", "161232443", "161196737", "161196445", "161172871",
+    "161172556", "160157511", "160157491", "160157465", "158462929",
+    "158462452", "158462270", "158040989", "158006798", "158006742",
+    "158006632", "156618273", "156240993", "156199320", "156198988",
+    "156198476", "155134179", "154289549", "152822984", "152818735",
+    "150586940",
+]
 
 
 @dataclass
@@ -130,19 +145,26 @@ def discover_articles(profile_html: str, base_url: str, user: str) -> list[str]:
         if pattern.search(url):
             urls.append(url.split("?")[0].split("#")[0])
 
-    return unique(urls)
+    discovered = unique(urls)
+    known_urls = [
+        f"https://blog.csdn.net/{user}/article/details/{article_id}"
+        for article_id in KNOWN_ARTICLE_IDS
+    ]
+    if len(discovered) < len(known_urls):
+        print(
+            f"Profile exposed only {len(discovered)} article links; "
+            f"using the known {len(known_urls)}-article archive snapshot."
+        )
+        return known_urls
+    return discovered
 
 
 def fetch_reader(url: str) -> str:
     reader_url = f"https://r.jina.ai/{url}"
     return fetch(
         reader_url,
-        retries=3,
-        headers={
-            "Accept": "text/plain",
-            "X-Engine": "browser",
-            "X-Cache-Tolerance": "3600",
-        },
+        retries=2,
+        headers={"Accept": "text/plain"},
     )
 
 
@@ -272,15 +294,168 @@ def reader_description(body: str, title: str) -> str:
     return title
 
 
-def parse_article(url: str) -> Article:
-    raw = fetch_reader(url)
-    content = reader_content(raw)
-    body, tags_section = split_reader_body(content)
+def html_series(raw_html: str, article_url: str) -> Category | None:
+    body_marker = raw_html.find('id="content_views"')
+    if body_marker < 0:
+        body_marker = raw_html.find("id='content_views'")
+    prefix = raw_html[:body_marker] if body_marker >= 0 else raw_html[:120000]
+    prefix_soup = BeautifulSoup(prefix, "html.parser")
+
+    for link in prefix_soup.find_all("a", href=True):
+        href = normalise_url(link["href"], article_url)
+        match = re.search(r"/fancyfor/category_(\d+)\.html", href)
+        if not match:
+            continue
+        name = re.sub(r"\s+", " ", link.get_text(" ", strip=True)).strip()
+        name = re.sub(r"\s*\d+\s*篇.*$", "", name).strip()
+        if not name or name in {"查看详情", "订阅专栏"}:
+            continue
+        category_id = match.group(1)
+        return Category(
+            name=name,
+            slug=SERIES_SLUGS.get(name, f"csdn-column-{category_id}"),
+            url=href.split("?")[0].split("#")[0],
+        )
+    return None
+
+
+def html_date(soup: BeautifulSoup, raw_html: str) -> datetime:
+    text = soup.get_text(" ", strip=True)
+    match = re.search(
+        r"于\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*首次发布",
+        text,
+    )
+    if match:
+        return datetime.strptime(match.group(1), "%Y-%m-%d %H:%M:%S")
+
+    for pattern in (
+        r'"dateCreated"\s*:\s*"([^"]+)"',
+        r'"datePublished"\s*:\s*"([^"]+)"',
+    ):
+        match = re.search(pattern, raw_html)
+        if not match:
+            continue
+        value = match.group(1).strip().replace("T", " ").replace("Z", "")
+        value = re.sub(r"([+-]\d{2}):?(\d{2})$", "", value).strip()
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(value[:19], fmt)
+            except ValueError:
+                pass
+    raise RuntimeError("Could not determine original publish date from HTML")
+
+
+def html_title(soup: BeautifulSoup) -> str:
+    for selector in ("h1.title-article", "h1"):
+        node = soup.select_one(selector)
+        if node:
+            value = node.get_text(" ", strip=True)
+            if value:
+                return value
+    meta = soup.find("meta", attrs={"property": "og:title"})
+    if meta and meta.get("content"):
+        return meta["content"].replace("-CSDN博客", "").strip()
+    return "未命名文章"
+
+
+def html_tags(soup: BeautifulSoup) -> list[str]:
+    values: list[str] = []
+    for selector in (
+        ".blog-tags-box a",
+        ".tags-box a",
+        ".article-info-box a[href*='so.csdn.net']",
+        "a[href*='so.csdn.net'][class*='tag']",
+    ):
+        for node in soup.select(selector):
+            tag = node.get_text(" ", strip=True).lstrip("#").strip()
+            if tag and len(tag) <= 40:
+                values.append(tag)
+    return unique(values)[:8]
+
+
+def html_description(soup: BeautifulSoup, body: BeautifulSoup, title: str) -> str:
+    meta = soup.find("meta", attrs={"name": "description"})
+    value = html.unescape(meta.get("content", "")).strip() if meta else ""
+    for prefix in (title, f"{title}-CSDN博客"):
+        if value.startswith(prefix):
+            value = value[len(prefix):].lstrip(" _-|：:")
+    value = re.sub(r"\s+", " ", value)
+    if not value:
+        paragraph = body.find("p")
+        value = paragraph.get_text(" ", strip=True) if paragraph else title
+    return (value[:176].rstrip() + "…") if len(value) > 180 else value
+
+
+def html_body_markdown(body: BeautifulSoup, article_url: str) -> str:
+    for selector in (
+        "script", "style", "iframe", "noscript", ".hide-preCode-box",
+        ".hljs-button", ".look-more-preCode", ".recommend-box",
+        ".article-copyright", ".passport-login-container",
+    ):
+        for node in body.select(selector):
+            node.decompose()
+
+    for anchor in body.find_all("a", href=True):
+        href = anchor["href"].strip()
+        if href.startswith(("javascript:", "#")):
+            anchor.attrs.pop("href", None)
+            continue
+        anchor["href"] = normalise_url(href, article_url)
+
+    for image in body.find_all("img"):
+        src = image.get("data-src") or image.get("data-original") or image.get("src")
+        if src:
+            image["src"] = normalise_url(src, article_url)
+        for attr in ("data-src", "data-original", "style", "onclick"):
+            image.attrs.pop(attr, None)
+
+    return to_markdown(
+        str(body),
+        heading_style="ATX",
+        bullets="-",
+        strip=["script", "style"],
+    ).strip()
+
+
+def parse_article_html(url: str, raw_html: str) -> Article:
+    soup = BeautifulSoup(raw_html, "html.parser")
+    body = soup.find(id="content_views") or soup.select_one(".article_content") or soup.select_one("article")
+    if body is None:
+        raise RuntimeError("Could not find article body in custom-domain HTML")
 
     article_id = article_id_from_url(url)
     if not article_id:
         raise RuntimeError(f"Could not determine article id for {url}")
 
+    title = html_title(soup)
+    return Article(
+        article_id=article_id,
+        url=url,
+        title=title,
+        description=html_description(soup, body, title),
+        published=html_date(soup, raw_html),
+        tags=html_tags(soup),
+        body=html_body_markdown(body, url),
+        series=html_series(raw_html, url),
+    )
+
+
+def parse_article(url: str) -> Article:
+    article_id = article_id_from_url(url)
+    if not article_id:
+        raise RuntimeError(f"Could not determine article id for {url}")
+
+    custom_url = f"https://fancyfor.blog.csdn.net/article/details/{article_id}"
+    try:
+        raw_html = fetch(custom_url, retries=1)
+        print(f"Custom CSDN host succeeded: {article_id}")
+        return parse_article_html(url, raw_html)
+    except Exception as custom_error:
+        print(f"Custom CSDN host failed for {article_id}: {custom_error}")
+
+    raw = fetch_reader(url)
+    content = reader_content(raw)
+    body, tags_section = split_reader_body(content)
     title = reader_title(raw, content)
     return Article(
         article_id=article_id,
