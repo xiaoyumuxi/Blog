@@ -14,7 +14,7 @@
 - Expressive Code：代码高亮、复制按钮、行号、高亮行与 diff 代码。
 - KaTeX 行内 / 块级公式；Mermaid 代码围栏。
 - Callout、可键盘操作的 Tabs、图片图集与放大、原生 details 折叠。
-- 下载卡片、PDF 内嵌预览；附带真实可下载的 PDF、ZIP、Markdown、JSON 示例。
+- 下载卡片、PDF 内嵌预览；附带真实可下载的 PDF 示例。
 - Pagefind 中文全文搜索、标签筛选、文章目录、阅读进度、RSS、Sitemap 与基础 SEO。
 
 **边界：** 文件下载不等于所有文件都能在线预览。Office 文件默认提供下载；浏览器对 PDF、音视频编码与第三方 iframe 的支持有差异。本项目是公开静态站点，不包含登录、私有文件权限或付费下载。只运行可信的 MDX 内容。
@@ -105,7 +105,7 @@ art: orbit # orbit / code / files
 - Expressive Code：代码高亮、复制按钮、行号、高亮行与 diff 代码。
 - KaTeX 行内 / 块级公式；Mermaid 代码围栏。
 - Callout、可键盘操作的 Tabs、图片图集与放大、原生 details 折叠。
-- 下载卡片、PDF 内嵌预览；附带真实可下载的 PDF、ZIP、Markdown、JSON 示例。
+- 下载卡片、PDF 内嵌预览；附带真实可下载的 PDF 示例。
 - Pagefind 中文全文搜索、标签筛选、文章目录、阅读进度、RSS、Sitemap 与基础 SEO。
 
 **边界：** 文件下载不等于所有文件都能在线预览。Office 文件默认提供下载；浏览器对 PDF、音视频编码与第三方 iframe 的支持有差异。本项目是公开静态站点，不包含登录、私有文件权限或付费下载。只运行可信的 MDX 内容。
@@ -221,7 +221,7 @@ npm run test:site
 
 ## 自动生成的示例附件
 
-PDF 与 ZIP 示例由 `scripts/generate-downloads.mjs` 在启动、检查或构建前生成。它们不是空占位文件；已有同名附件不会被覆盖。
+PDF 示例由 `scripts/generate-downloads.mjs` 在启动、检查或构建前生成。它不是空占位文件；已有同名附件不会被覆盖。
 
 ## 公开内容与隐私
 
