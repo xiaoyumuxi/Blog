@@ -109,7 +109,9 @@ const origin = 'http://127.0.0.1:4322';
 const base = process.env.BASE_PATH ?? '/Blog';
 const url = path => `${origin}${base.replace(/\/$/, '')}/${path}`;
 await mkdir('test-results', { recursive: true });
-const server = spawn('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', '4322'], { stdio: 'inherit' });
+// Astro 7 keeps a project-level preview process after the previous npm wrapper exits.
+// Replace that local test preview explicitly; changing ports alone does not release its lock.
+const server = spawn('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', '4322', '--force'], { stdio: 'inherit' });
 let browser;
 try {
   let ready = false;
