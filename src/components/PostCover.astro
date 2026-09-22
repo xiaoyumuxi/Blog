@@ -1,0 +1,52 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { href } from '../lib/site';
+import { postCover } from '../lib/post-cover';
+
+interface Props { post: CollectionEntry<'blog'>; hero?: boolean; }
+const { post, hero = false } = Astro.props;
+const cover = postCover(post);
+---
+<div class="post-cover" data-post-cover={post.id}>
+  <img
+    src={href(cover.src)}
+    alt={cover.alt}
+    width="1200"
+    height="675"
+    loading={hero ? 'eager' : 'lazy'}
+    fetchpriority={hero ? 'high' : 'auto'}
+    decoding="async"
+    data-cover-image
+    data-cover-fallback={cover.src !== cover.fallback ? href(cover.fallback) : undefined}
+    data-cover-fallback-alt={`${post.data.title}的文章封面`}
+  />
+</div>
+
+<style>
+  .post-cover { aspect-ratio: 16 / 9; width: 100%; overflow: hidden; background: var(--surface-soft); }
+  .post-cover img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .3s ease; }
+  :global(.post-art-link:hover) .post-cover img { transform: scale(1.025); }
+  @media (prefers-reduced-motion: reduce) { .post-cover img { transition: none; } }
+</style>
+
+<script>
+  function bindCoverFallbacks() {
+    document.querySelectorAll<HTMLImageElement>('img[data-cover-image]').forEach(image => {
+      if (image.dataset.coverBound) return;
+      image.dataset.coverBound = 'true';
+      const fallback = () => {
+        const src = image.dataset.coverFallback;
+        if (!src) return;
+        // Clear first: a failed fallback must not start an infinite request loop.
+        delete image.dataset.coverFallback;
+        image.dataset.coverFallbackUsed = 'true';
+        image.alt = image.dataset.coverFallbackAlt || image.alt;
+        image.src = src;
+      };
+      image.addEventListener('error', fallback);
+      if (image.complete && image.naturalWidth === 0) fallback();
+    });
+  }
+  bindCoverFallbacks();
+  document.addEventListener('astro:page-load', bindCoverFallbacks);
+</script>

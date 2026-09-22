@@ -1,6 +1,6 @@
 ---
 import type { CollectionEntry } from 'astro:content';
-import Art from './Art.astro';
+import PostCover from './PostCover.astro';
 import Icon from './Icon.astro';
 import { href, formatDate, readTime } from '../lib/site';
 
@@ -9,7 +9,7 @@ const {post} = Astro.props;
 const series = post.data.series;
 ---
 <article class="post-card" data-post-card data-tags={JSON.stringify(post.data.tags)}>
-  <a class="post-art-link" href={href(`blog/${post.id}/`)} tabindex="-1" aria-hidden="true"><Art variant={post.data.art} /></a>
+  <a class="post-art-link" href={href(`blog/${post.id}/`)} tabindex="-1" aria-hidden="true"><PostCover post={post} /></a>
   <div class="post-card-body">
     <div class="post-meta">
       <span>

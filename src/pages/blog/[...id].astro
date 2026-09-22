@@ -2,7 +2,7 @@
 import { render } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
-import Art from '../../components/Art.astro';
+import PostCover from '../../components/PostCover.astro';
 import GiscusComments from '../../components/GiscusComments.astro';
 import PageViews from '../../components/PageViews.astro';
 import { posts, href, site, formatDate, readTime } from '../../lib/site';
@@ -51,7 +51,7 @@ const nextInSeries = seriesGroup && seriesIndex >= 0 && seriesIndex < seriesGrou
     </div>
   </header>
 
-  <div class="article-cover"><Art variant={post.data.art}/></div>
+  <div class="article-cover"><PostCover post={post} hero /></div>
 
   <div class="article-layout">
     <article class="prose" data-pagefind-body data-article>
