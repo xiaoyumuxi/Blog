@@ -22,13 +22,8 @@ const { group } = Astro.props;
   </header>
 
   <section class="page-content" aria-label={`${group.name}文章列表`}>
-    <ol class="series-timeline">
-      {group.posts.map((post, index) => (
-        <li>
-          <span class="series-order">{String(post.data.series?.order ?? index + 1).padStart(2, '0')}</span>
-          <PostCard post={post}/>
-        </li>
-      ))}
-    </ol>
+    <div class="post-grid">
+      {group.posts.map(post => <PostCard post={post}/>)}
+    </div>
   </section>
 </Base>
