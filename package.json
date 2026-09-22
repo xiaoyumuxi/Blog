@@ -15,7 +15,7 @@
     "build": "astro build && pagefind --site dist",
     "preview": "astro preview",
     "new": "node scripts/new-post.mjs",
-    "test:site": "node --experimental-strip-types --test scripts/post-cover.test.mjs && node scripts/verify.mjs && node scripts/verify-post-covers.mjs",
+    "test:site": "node --experimental-strip-types --test scripts/post-cover.test.mjs && node scripts/verify.mjs",
     "import:csdn": "node scripts/import-csdn-local.mjs"
   },
   "dependencies": {

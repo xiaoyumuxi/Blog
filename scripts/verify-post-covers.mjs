@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict';
-import { chromium } from '@playwright/test';
-import { spawn } from 'node:child_process';
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 async function htmlFiles(directory) {
@@ -102,40 +100,4 @@ export async function verifyPostCovers(page, url) {
   await page.screenshot({ path: 'test-results/covers-mobile.png', animations: 'disabled' });
   if (viewport) await page.setViewportSize(viewport);
   return `${articles.length} article covers verified; ${generated.length} unique SVGs; card/hero binding, decoding, fallback and mobile aspect ratio pass.`;
-}
-
-// Run after the existing site suite, on a separate local preview port.
-const origin = 'http://127.0.0.1:4322';
-const base = process.env.BASE_PATH ?? '/Blog';
-const url = path => `${origin}${base.replace(/\/$/, '')}/${path}`;
-await mkdir('test-results', { recursive: true });
-// Astro 7 keeps a project-level preview process after the previous npm wrapper exits.
-// Replace that local test preview explicitly; changing ports alone does not release its lock.
-const server = spawn('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', '4322', '--force'], { stdio: 'inherit' });
-let browser;
-try {
-  let ready = false;
-  for (let attempt = 0; attempt < 90; attempt++) {
-    try { if ((await fetch(url(''))).ok) { ready = true; break; } } catch {}
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }
-  assert(ready, 'Cover preview server did not start.');
-  browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  // Never send analytics, comments or other third-party requests during this suite.
-  await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
-  const page = await context.newPage();
-  const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  await page.goto(url(''), { waitUntil: 'networkidle' });
-  const result = await verifyPostCovers(page, url);
-  assert.deepEqual(errors, [], 'Uncaught errors during cover verification.');
-  await writeFile('test-results/cover-verification.json', JSON.stringify({ passed: true, result }, null, 2));
-  console.log(result);
-} catch (error) {
-  await writeFile('test-results/cover-verification.json', JSON.stringify({ passed: false, error: String(error) }, null, 2));
-  throw error;
-} finally {
-  await browser?.close();
-  server.kill('SIGTERM');
 }

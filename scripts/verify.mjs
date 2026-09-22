@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { verifyFixedFilters } from './verify-fixed-filters.mjs';
 import { verifyArticleExtras, verifyPageViewStates } from './verify-article-extras.mjs';
+import { verifyPostCovers } from './verify-post-covers.mjs';
 const origin='http://127.0.0.1:4321';
 const base=process.env.BASE_PATH ?? '/Blog';
 const url=path=>`${origin}${base.replace(/\/$/,'')}/${path}`;
@@ -82,6 +83,24 @@ try {
   results.push('390px mobile homepage, published article and resources have no horizontal overflow.');
   assert.deepEqual(errors,[],'Browser JavaScript errors occurred.');
   results.push('No uncaught browser JavaScript errors.');
+  // Share this suite's preview server; isolate cover routes and state in a fresh context.
+  const coverContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  try {
+    await coverContext.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
+    const coverPage = await coverContext.newPage();
+    const coverErrors = [];
+    coverPage.on('pageerror', error => coverErrors.push(error.message));
+    await coverPage.goto(url(''), { waitUntil: 'networkidle' });
+    const result = await verifyPostCovers(coverPage, url);
+    assert.deepEqual(coverErrors, [], 'Uncaught errors during cover verification.');
+    results.push(result);
+    await writeFile('test-results/cover-verification.json', JSON.stringify({ passed: true, result }, null, 2));
+  } catch (error) {
+    await writeFile('test-results/cover-verification.json', JSON.stringify({ passed: false, error: String(error) }, null, 2));
+    throw error;
+  } finally {
+    await coverContext.close();
+  }
   await writeFile('test-results/verification.json',JSON.stringify({passed:true,checks:results},null,2));
   console.log(results.join('\n'));
 } catch(error){
